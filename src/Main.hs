@@ -1,6 +1,7 @@
 module Main where
 
 import Prolog.Syntax
+import Prolog.Parser.Term
 -- import Prolog.Parser
 
 -- program = 
