@@ -3,17 +3,12 @@ module Prolog.Syntax where
 import Data.List
 
 data Program 
-  = Program [Clause] Predicate
+  = Program [Clause] Term
   deriving (Show)
 
 data Clause 
-  = Fact Predicate
-  | Rule Predicate Body
-  deriving (Show)
-
-data Predicate 
-  = Predicate Atom [Term]
-  | Cut
+  = Fact Term
+  | Rule Term Term
   deriving (Show)
 
 data Term 
@@ -21,6 +16,7 @@ data Term
   | Number Number
   | Variable Variable
   | CompoundTerm Atom [Term]
+  | Cut
   deriving (Show)
 
 data Variable 

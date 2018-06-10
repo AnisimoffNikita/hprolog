@@ -106,43 +106,41 @@ parseString = lexeme $ toTerm <$> between (char '"')(char '"') (many alphaNum)
 
 parseList :: Parser Term 
 parseList = lexeme $ do 
-  char '['
+  lexeme $ char '['
+  
+  a <- parseArgs
 
-  char '|'
+  lexeme $ char '|'
+
+  b <- parseTerm'
 
   char ']'
 
-  undefined
+  return $ toTerm a b
+  where 
+    toTerm [] z = z
+    toTerm (x:[]) z = CompoundTerm (Symbolic ".") [x, z]
+    toTerm (x:xs) z = CompoundTerm (Symbolic ".") [x, toTerm xs z]
+
+
+parseCut :: Parser Term 
+parseCut = char '!' >> return Cut
 
 parseTerm' :: Parser Term 
 parseTerm' = try parseCompound <|> parseAtom <|> parseNumber <|> parseVariable <|> parseString <|> parseList
 
 
--- PREDICATE PARSER
-
-parsePredicate'' :: Parser Predicate
-parsePredicate'' = do 
-  a <- parseAtom'
-  b <- parseArgs 
-  return $ Predicate a b
-
-parseCut :: Parser Predicate 
-parseCut = char '!' >> return Cut
-
-parsePredicate' :: Parser Predicate 
-parsePredicate' = lexeme $ parsePredicate'' <|> parseCut 
-
 -- CLAUSE PARSER
 
 parseFact :: Parser Clause 
 parseFact = do 
-  a <- parsePredicate'
+  a <- parseTerm'
   char '.'
   return $ Fact a
 
 parseRule :: Parser Clause 
 parseRule =  do 
-  a <- parsePredicate'
+  a <- parseTerm'
   lexeme $ string ":-"
   b <- parseBody
   char '.'
@@ -155,22 +153,50 @@ parseClause' = lexeme $ parseRule <|> parseFact
 
 parseBody = expr
 
-parsePredicate :: Parser Predicate 
-parsePredicate = parsePredicate'
+parseTerm :: Parser Term 
+parseTerm = lexeme $ parseTerm'
 
-expr :: Parser Predicate
+expr :: Parser Term
 expr = buildExpressionParser table term
 
-term :: Parser Predicate
-term = (P.between (char '(' >> whitespace) (char ')') expr) <|> parsePredicate
+term :: Parser Term
+term = (P.between (char '(' >> whitespace) (char ')') expr) <|> parseTerm
 
--- difficult type :(
-table = [ [makeOperator Infix AssocLeft ","]
+table = [ [ makeOperator Infix AssocLeft ":"]
+        , [ makeOperator Infix AssocLeft "@"]
+        , [ makeOperator Infix AssocLeft "\\"
+          , makeOperator Infix AssocLeft "^"
+          , makeOperator Infix AssocLeft "**"
+          ]
+        , [ makeOperator Infix AssocLeft "*"
+          , makeOperator Infix AssocLeft "/"
+          , makeOperator Infix AssocLeft "rem"
+          , makeOperator Infix AssocLeft "mod"
+          ]
+        , [ makeOperator Infix AssocLeft "+"
+          , makeOperator Infix AssocLeft "-"
+          ]
+        , [ makeOperator Infix AssocLeft "="
+          , makeOperator Infix AssocLeft "is"
+          , makeOperator Infix AssocLeft "=="
+          , makeOperator Infix AssocLeft "\\="
+          , makeOperator Infix AssocLeft "<"
+          , makeOperator Infix AssocLeft "=<"
+          , makeOperator Infix AssocLeft ">"
+          , makeOperator Infix AssocLeft ">="
+          ]
+        , [ makeOperator Infix AssocLeft ","]
+        , [ makeOperator Infix AssocLeft "->"]
+        , [ makeOperator Infix AssocLeft ";"]
         ]
 
-makeOperator op assoc name = op (makeFunc name <$ string name) assoc
+makeOperator op assoc name = op (makeFunc name <$ (try $ string name >> whitespace)) assoc
   where 
-    makeFunc name a b = Predicate (Symbolic name) [a, b]
+    makeFunc name a b = CompoundTerm (Symbolic name) [a, b]
+
+-- PARSER PROGRAM
+
+
 
 -- HELPERS
 
