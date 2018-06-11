@@ -45,15 +45,18 @@ parseSymbolic = do
 parseQuoted :: Parser Atom 
 parseQuoted = do 
   char '\''
-  a <- many anyChar
+  a <- many alphaNum
   char '\''
-  return $ Quoted a
+  return $ Symbolic a
 
 parseSpecial :: Parser Atom
-parseSpecial = Special <$> many1 (oneOf "+-*/\\^~:.?#$&")
+parseSpecial = Symbolic <$> many1 (oneOf "+-*/\\^~:.?#$&")
+
+parseListAtom :: Parser Atom
+parseListAtom = Symbolic <$> string "[]"
 
 parseAtom' :: Parser Atom 
-parseAtom' = parseSymbolic <|> parseQuoted <|> parseSpecial
+parseAtom' = parseSymbolic <|> parseQuoted <|> parseSpecial <|> parseListAtom
 
 -- VARIABLE PARSER
 
@@ -73,13 +76,13 @@ parseVariable' = parseNamed <|> parseAnonymous
 -- TERM PARSER
 
 parseAtom :: Parser Term
-parseAtom = lexeme $ Atom <$> parseAtom'
+parseAtom = lexeme $ AtomTerm <$> parseAtom'
 
 parseNumber :: Parser Term
-parseNumber = lexeme $ Number <$> parseNumber'
+parseNumber = lexeme $ NumberTerm <$> parseNumber'
 
 parseVariable :: Parser Term 
-parseVariable = lexeme $ Variable <$> parseVariable'
+parseVariable = lexeme $ VariableTerm <$> parseVariable'
 
 parseCompound :: Parser Term 
 parseCompound = lexeme $ do 
@@ -88,34 +91,22 @@ parseCompound = lexeme $ do
   return $ CompoundTerm a b
 
 parseArgs :: Parser [Term]
-parseArgs = lexeme $ do  
-  arg <- parseTerm'
-  args <- parseNextArg
-  return (arg:args)
-
-parseNextArg :: Parser [Term]
-parseNextArg = (char ',' >> whitespace >> parseArgs) <|> return []
-
+parseArgs = lexeme $ sepBy parseTerm' (lexeme $ char ',')
 
 parseString :: Parser Term 
 parseString = lexeme $ toTerm <$> between (char '"')(char '"') (many alphaNum)
   where 
-    toTerm [] = Atom $ Symbolic "[]"
-    toTerm (x:[]) = CompoundTerm (Symbolic ".") [Atom $ Symbolic [x], Atom $ Symbolic "[]"]
-    toTerm (x:xs) = CompoundTerm (Symbolic ".") [Atom $ Symbolic [x], toTerm xs]
+    toTerm [] = AtomTerm $ Symbolic "[]"
+    toTerm (x:[]) = CompoundTerm (Symbolic ".") [AtomTerm $ Symbolic [x], AtomTerm $ Symbolic "[]"]
+    toTerm (x:xs) = CompoundTerm (Symbolic ".") [AtomTerm $ Symbolic [x], toTerm xs]
 
 parseList :: Parser Term 
 parseList = lexeme $ do 
   lexeme $ char '['
-  
+
   a <- parseArgs
-
-  lexeme $ char '|'
-
-  b <- parseTerm'
-
+  b <- option (AtomTerm $ Symbolic "[]") $ (lexeme $ char '|') >> parseTerm'
   char ']'
-
   return $ toTerm a b
   where 
     toTerm [] z = z
@@ -151,48 +142,25 @@ parseClause' = lexeme $ parseRule <|> parseFact
 
 -- BODY PARSE
 
-parseBody = expr
 
-parseTerm :: Parser Term 
-parseTerm = lexeme $ parseTerm'
+parseBody :: Parser Body 
+parseBody = parseDisjunctive <|> parseParentheses
 
-expr :: Parser Term
-expr = buildExpressionParser table term
+parseParentheses :: Parser Body 
+parseParentheses = lexeme $ between (lexeme $ char '(') (char ')') parseBody
 
-term :: Parser Term
-term = (P.between (char '(' >> whitespace) (char ')') expr) <|> parseTerm
+parseDisjunctive :: Parser Body 
+parseDisjunctive = lexeme $ do 
+  a <- sepBy1 (parseConjuctive <|> parseParentheses) (lexeme $ char ';') 
+  return $ Disjunctive a
 
-table = [ [ makeOperator Infix AssocLeft ":"]
-        , [ makeOperator Infix AssocLeft "@"]
-        , [ makeOperator Infix AssocLeft "\\"
-          , makeOperator Infix AssocLeft "^"
-          , makeOperator Infix AssocLeft "**"
-          ]
-        , [ makeOperator Infix AssocLeft "*"
-          , makeOperator Infix AssocLeft "/"
-          , makeOperator Infix AssocLeft "rem"
-          , makeOperator Infix AssocLeft "mod"
-          ]
-        , [ makeOperator Infix AssocLeft "+"
-          , makeOperator Infix AssocLeft "-"
-          ]
-        , [ makeOperator Infix AssocLeft "="
-          , makeOperator Infix AssocLeft "is"
-          , makeOperator Infix AssocLeft "=="
-          , makeOperator Infix AssocLeft "\\="
-          , makeOperator Infix AssocLeft "<"
-          , makeOperator Infix AssocLeft "=<"
-          , makeOperator Infix AssocLeft ">"
-          , makeOperator Infix AssocLeft ">="
-          ]
-        , [ makeOperator Infix AssocLeft ","]
-        , [ makeOperator Infix AssocLeft "->"]
-        , [ makeOperator Infix AssocLeft ";"]
-        ]
+parseConjuctive :: Parser Body 
+parseConjuctive = lexeme $ do 
+  a <- sepBy1 (parseTerm <|> parseParentheses) (lexeme $ char ',')
+  return $ Conjunctive a
 
-makeOperator op assoc name = op (makeFunc name <$ (try $ string name >> whitespace)) assoc
-  where 
-    makeFunc name a b = CompoundTerm (Symbolic name) [a, b]
+parseTerm :: Parser Body 
+parseTerm = Term <$> parseTerm'
 
 -- PARSER PROGRAM
 

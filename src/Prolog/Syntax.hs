@@ -1,37 +1,41 @@
-module Prolog.Syntax where 
+module Prolog.Syntax where
 
 import Data.List
 
-data Program 
+data Program
   = Program [Clause] Term
   deriving (Show)
 
-data Clause 
+data Clause
   = Fact Term
-  | Rule Term Term
+  | Rule Term Body
   deriving (Show)
 
-data Term 
-  = Atom Atom 
-  | Number Number
-  | Variable Variable
+data Term
+  = AtomTerm Atom
+  | NumberTerm Number
+  | VariableTerm Variable
   | CompoundTerm Atom [Term]
   | Cut
   deriving (Show)
 
-data Variable 
+data Variable
   = Named String
-  | Anonymous 
+  | Anonymous
   deriving (Show)
 
-data Atom 
+data Atom
   = Symbolic String
-  | Quoted String
-  | Special String
-  | Struct
   deriving (Show)
 
-data Number 
-  = Int Int 
-  | Float Float 
+data Number
+  = Int Int
+  | Float Float
+  deriving (Show)
+
+
+data Body 
+  = Conjunctive [Body]
+  | Disjunctive [Body]
+  | Term Term
   deriving (Show)
