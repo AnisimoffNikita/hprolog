@@ -1,29 +1,27 @@
-module Prolog.Parser.Term
+module Prolog.Parser
+  
   where 
 
-import Text.ParserCombinators.Parsec
-
-import qualified Text.Parsec as P
-import qualified Text.Parsec.Char as P
-import Text.Parsec.Expr (Operator(..), Assoc(..), buildExpressionParser)
-import Text.Parsec.Token (TokenParser(..), makeTokenParser)
-import qualified Text.Parsec.String (Parser)
+import Text.ParserCombinators.Parsec hiding (Parser)
+import Text.Parsec (Parsec)
+import qualified Data.Map as M
 import Control.Monad (void)
+
 
 import Prolog.Syntax
 
-
-
 -- NUMBER PARSER
+
+type Parser = Parsec String ((M.Map String Int), Int)
 
 parseInt :: Parser Number
 parseInt = do 
-  a <- plus <|> minus <|> number
+  a <- integer
   return . Int $ read a
       
 parseFloat :: Parser Number
 parseFloat = do 
-  a <- number
+  a <- integer
   b <- decimal 
   c <- exponent 
   return $ Float $ read (a ++ b ++ c)
@@ -64,7 +62,15 @@ parseNamed :: Parser Variable
 parseNamed = do 
   a <- upper
   b <- many (alphaNum <|> char '_')
-  return $ Named (a:b)
+  (vars, next) <- getState
+  let 
+    var = a:b
+    v = M.lookup var vars
+  case v of 
+    Just id -> return $ Named var id 
+    Nothing -> do 
+      setState (M.insert var next vars, next + 1)
+      return $ Named var next 
 
 parseAnonymous :: Parser Variable
 parseAnonymous = char '_' >> return Anonymous
@@ -97,8 +103,8 @@ parseString :: Parser Term
 parseString = lexeme $ toTerm <$> between (char '"')(char '"') (many alphaNum)
   where 
     toTerm [] = AtomTerm $ Symbolic "[]"
-    toTerm (x:[]) = CompoundTerm (Symbolic ".") [AtomTerm $ Symbolic [x], AtomTerm $ Symbolic "[]"]
-    toTerm (x:xs) = CompoundTerm (Symbolic ".") [AtomTerm $ Symbolic [x], toTerm xs]
+    toTerm [x] = CompoundTerm (Symbolic "!") [AtomTerm $ Symbolic [x], AtomTerm $ Symbolic "[]"]
+    toTerm (x:xs) = CompoundTerm (Symbolic "!") [AtomTerm $ Symbolic [x], toTerm xs]
 
 parseList :: Parser Term 
 parseList = lexeme $ do 
@@ -110,15 +116,21 @@ parseList = lexeme $ do
   return $ toTerm a b
   where 
     toTerm [] z = z
-    toTerm (x:[]) z = CompoundTerm (Symbolic ".") [x, z]
-    toTerm (x:xs) z = CompoundTerm (Symbolic ".") [x, toTerm xs z]
+    toTerm [x] z = CompoundTerm (Symbolic "!") [x, z]
+    toTerm (x:xs) z = CompoundTerm (Symbolic "!") [x, toTerm xs z]
 
 
 parseCut :: Parser Term 
 parseCut = char '!' >> return Cut
 
 parseTerm' :: Parser Term 
-parseTerm' = try parseCompound <|> parseAtom <|> parseNumber <|> parseVariable <|> parseString <|> parseList
+parseTerm' = try parseCompound 
+         <|> parseAtom 
+         <|> parseNumber
+         <|> parseVariable 
+         <|> parseString 
+         <|> parseList 
+         <|> parseCut
 
 
 -- CLAUSE PARSER
@@ -138,7 +150,11 @@ parseRule =  do
   return $ Rule a b
 
 parseClause' :: Parser Clause
-parseClause' = lexeme $ parseRule <|> parseFact 
+parseClause' = lexeme $ do 
+  a <- try parseRule <|> parseFact 
+  (_, next) <- getState
+  setState (M.empty, next)
+  return a
 
 -- BODY PARSE
 
@@ -160,11 +176,14 @@ parseConjuctive = lexeme $ do
   return $ Conjunctive a
 
 parseTerm :: Parser Body 
-parseTerm = Term <$> parseTerm'
+parseTerm = Element <$> parseTerm'
 
 -- PARSER PROGRAM
 
-
+parseProgram :: Parser Program
+parseProgram = do 
+  p <- many parseClause'
+  return $ Program p
 
 -- HELPERS
 
@@ -174,8 +193,6 @@ whitespace = void $ many $ oneOf " \n\t"
 lexeme :: Parser a -> Parser a
 lexeme p = p <* whitespace
 
-
-(<++>) a b = (++) <$> a <*> b
 (<:>) a b = (:) <$> a <*> b
 
 plus   = char '+' >> number

@@ -3,13 +3,13 @@ module Prolog.Syntax where
 import Data.List
 
 data Program
-  = Program [Clause] Term
+  = Program [Clause]
   deriving (Show)
 
 data Clause
   = Fact Term
   | Rule Term Body
-  deriving (Show)
+  deriving (Show, Eq)
 
 data Term
   = AtomTerm Atom
@@ -17,25 +17,25 @@ data Term
   | VariableTerm Variable
   | CompoundTerm Atom [Term]
   | Cut
-  deriving (Show)
+  deriving (Show, Eq)
 
 data Variable
-  = Named String
+  = Named String Int
   | Anonymous
-  deriving (Show)
+  deriving (Show, Eq)
 
 data Atom
   = Symbolic String
-  deriving (Show)
+  deriving (Show, Eq)
 
 data Number
   = Int Int
   | Float Float
-  deriving (Show)
+  deriving (Show, Eq)
 
 
 data Body 
-  = Conjunctive [Body]
-  | Disjunctive [Body]
-  | Term Term
-  deriving (Show)
+  = Disjunctive [Body]
+  | Conjunctive [Body]
+  | Element Term
+  deriving (Show, Eq)
