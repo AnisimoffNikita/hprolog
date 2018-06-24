@@ -9,8 +9,8 @@ import           Debug.Trace
 type Checks = [Check]
 type Results = [Result]
 
-data Result = Term := Term
-data Check = Term :? Term
+data Result = Term := Term deriving (Show)
+data Check = Term :? Term deriving (Show)
 
 unification :: Checks -> Results -> Maybe Results
 unification []              work = Just work
@@ -62,3 +62,8 @@ unification' t p = case (t, p) of
       then Just (zipWith (:?) args1 args2, Nothing)
       else Nothing
   (t, p) -> if t == p then Just ([], Nothing) else Nothing
+
+
+search :: Program -> Question -> Maybe Results 
+search (Program clauses) = do 
+  undefined

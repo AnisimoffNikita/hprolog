@@ -39,3 +39,5 @@ data Body
   | Conjunctive [Body]
   | Element Term
   deriving (Show, Eq)
+
+type Question = Body

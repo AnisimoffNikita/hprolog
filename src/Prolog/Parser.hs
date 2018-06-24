@@ -9,6 +9,7 @@ import Control.Monad (void)
 
 
 import Prolog.Syntax
+import Prolog.Simplifier
 
 -- NUMBER PARSER
 
@@ -125,11 +126,11 @@ parseCut = char '!' >> return Cut
 
 parseTerm' :: Parser Term 
 parseTerm' = try parseCompound 
+         <|> try parseList 
          <|> parseAtom 
          <|> parseNumber
          <|> parseVariable 
          <|> parseString 
-         <|> parseList 
          <|> parseCut
 
 
@@ -145,7 +146,7 @@ parseRule :: Parser Clause
 parseRule =  do 
   a <- parseTerm'
   lexeme $ string ":-"
-  b <- parseBody
+  b <- simplify <$> parseBody
   char '.'
   return $ Rule a b
 
@@ -184,6 +185,7 @@ parseProgram :: Parser Program
 parseProgram = do 
   p <- many parseClause'
   return $ Program p
+
 
 -- HELPERS
 
