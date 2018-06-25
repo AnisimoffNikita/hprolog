@@ -21,6 +21,7 @@ executable hprolog
                      , parsec
                      , mtl
                      , containers
+                     , transformers
   other-modules:       Prolog.Syntax, Prolog.Parser, Prolog.Unification
   default-extensions:  DataKinds
                      , GADTs

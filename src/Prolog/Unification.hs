@@ -5,17 +5,23 @@ import           Prolog.Syntax
 import           Data.List                      ( find )
 import           Control.Monad                  ( zipWithM )
 import           Debug.Trace
+import           Control.Monad.Writer
+import           Control.Monad.State
+-- import           Control.Monad.Trans.State
+import           Control.Monad.Trans.Maybe
+
+import Prolog.Simplifier
 
 type Checks = [Check]
 type Results = [Result]
 
-data Result = Term := Term deriving (Show)
-data Check = Term :? Term deriving (Show)
+data Result = Term := Term deriving (Show, Eq)
+data Check = Term :? Term deriving (Show, Eq)
 
 unification :: Checks -> Results -> Maybe Results
 unification []              work = Just work
 unification (t :? p : rest) work = do
-  (stack', work') <- unification' t p
+  (stack', work') <- unificateTerms t p
   case work' of
     Just (t := p) -> do
       updatedStack <- updateEquals t p rest
@@ -42,15 +48,15 @@ replaceOccurrence t q (CompoundTerm f args) = CompoundTerm f (map update args)
   update p                       = if t == p then q else p
 replaceOccurrence t q p = if t == p then q else p
 
-unification' :: Term -> Term -> Maybe (Checks, Maybe Result)
-unification' t p = case (t, p) of
+unificateTerms :: Term -> Term -> Maybe (Checks, Maybe Result)
+unificateTerms t p = case (t, p) of
   (Cut                     , _           ) -> Just ([], Nothing)
   (VariableTerm Anonymous  , _           ) -> Just ([], Nothing)
   (VariableTerm (Named n i), AtomTerm x  ) -> Just ([], Just (t := p))
   (VariableTerm (Named n i), NumberTerm x) -> Just ([], Just (t := p))
   (VariableTerm (Named n1 i1), VariableTerm (Named n2 i2)) ->
     Just ([], Just (t := p))
-  (_, VariableTerm (Named n i)) -> unification' p t
+  (_, VariableTerm (Named n i)) -> unificateTerms p t
   (VariableTerm (Named n i), CompoundTerm f args) -> case find (f i) args of
     Just _  -> Nothing
     Nothing -> Just ([], Just (t := p))
@@ -64,6 +70,39 @@ unification' t p = case (t, p) of
   (t, p) -> if t == p then Just ([], Nothing) else Nothing
 
 
-search :: Program -> Question -> Maybe Results 
-search (Program clauses) = do 
-  undefined
+search :: Program -> Question -> Maybe [Results]
+search (Program clauses) question = do
+  (x, results) <- search' clauses [terms] []
+  return results
+  where 
+    terms = bodyToTerms question
+    
+search' :: [Clause] -> [[Term]] -> [Results] -> Maybe ([Term], [Results])
+search' _ [] result = Just ([], result)
+search' cl ([]: ts) result = search' cl ts result
+search' cl ((t:ts') : ts) result = foldM f ([],[]) (unificateClausesTerm cl t (head result))
+  where 
+    f acc (Just (update, result')) = search' cl (update : ts' : ts) (acc ++ result')
+
+
+unificateClausesTerm :: [Clause] -> Term -> Results -> [Maybe ([Term], Results)]
+unificateClausesTerm clauses term result = 
+  map (\x -> unificateClauseTerm x term result) clauses
+
+unificateClauseTerm :: Clause -> Term -> Results -> Maybe ([Term], Results)
+unificateClauseTerm (Rule t1 b) t2 result = do 
+  x <- unification [t1 :? t2] result
+  return (bodyToTerms b, x)
+unificateClauseTerm (Fact t1) t2 result = do 
+  x <- unification [t1 :? t2] result
+  return ([], x)
+  
+
+
+
+bodyToTerms :: Body -> [Term]
+bodyToTerms b = foldr extract [] [body']
+  where 
+    body' = simplify b
+    extract (Element t) acc = t:acc 
+    extract _ acc = acc
