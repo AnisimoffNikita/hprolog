@@ -12,13 +12,15 @@ import           Control.Monad.Trans.Maybe
 
 import Prolog.Simplifier
 
-type Checks = [Check]
-type Results = [Result]
+type Targets = [Target]
+type Result = [ResultPair]
 
-data Result = Term := Term deriving (Show, Eq)
-data Check = Term :? Term deriving (Show, Eq)
+data ResultPair = Term := Term deriving (Show, Eq)
+data Target = Term :? Term deriving (Show, Eq)
 
-unification :: Checks -> Results -> Maybe Results
+
+
+unification :: Targets -> Result -> Maybe Result
 unification []              work = Just work
 unification (t :? p : rest) work = do
   (stack', work') <- unificateTerms t p
@@ -29,11 +31,11 @@ unification (t :? p : rest) work = do
       unification updatedStack (t := p : updatedWork)
     Nothing -> unification (stack' ++ rest) work
 
-updateEquals :: Term -> Term -> Checks -> Maybe Checks
+updateEquals :: Term -> Term -> Targets -> Maybe Targets
 updateEquals t p equals = Just $ map f equals
   where f (t' :? p') = replaceOccurrence t p t' :? replaceOccurrence t p p'
 
-updateResult :: Term -> Term -> Results -> Maybe Results
+updateResult :: Term -> Term -> Result -> Maybe Result
 updateResult t p results = concat <$> mapM f results
  where
   f x@(t' := p') =
@@ -48,7 +50,7 @@ replaceOccurrence t q (CompoundTerm f args) = CompoundTerm f (map update args)
   update p                       = if t == p then q else p
 replaceOccurrence t q p = if t == p then q else p
 
-unificateTerms :: Term -> Term -> Maybe (Checks, Maybe Result)
+unificateTerms :: Term -> Term -> Maybe (Targets, Maybe ResultPair)
 unificateTerms t p = case (t, p) of
   (Cut                     , _           ) -> Just ([], Nothing)
   (VariableTerm Anonymous  , _           ) -> Just ([], Nothing)
@@ -70,39 +72,70 @@ unificateTerms t p = case (t, p) of
   (t, p) -> if t == p then Just ([], Nothing) else Nothing
 
 
-search :: Program -> Question -> Maybe [Results]
-search (Program clauses) question = do
-  (x, results) <- search' clauses [terms] []
-  return results
-  where 
-    terms = bodyToTerms question
-    
-search' :: [Clause] -> [[Term]] -> [Results] -> Maybe ([Term], [Results])
-search' _ [] result = Just ([], result)
-search' cl ([]: ts) result = search' cl ts result
-search' cl ((t:ts') : ts) result = foldM f ([],[]) (unificateClausesTerm cl t (head result))
-  where 
-    f acc (Just (update, result')) = search' cl (update : ts' : ts) (acc ++ result')
+data SearchTree
+  = Leaf (Maybe Result)
+  | Node Result Resolvent [SearchTree]
+  deriving (Show)
 
-
-unificateClausesTerm :: [Clause] -> Term -> Results -> [Maybe ([Term], Results)]
-unificateClausesTerm clauses term result = 
-  map (\x -> unificateClauseTerm x term result) clauses
-
-unificateClauseTerm :: Clause -> Term -> Results -> Maybe ([Term], Results)
-unificateClauseTerm (Rule t1 b) t2 result = do 
-  x <- unification [t1 :? t2] result
-  return (bodyToTerms b, x)
-unificateClauseTerm (Fact t1) t2 result = do 
-  x <- unification [t1 :? t2] result
-  return ([], x)
+data Resolvent 
+  = ResolventNil 
+  | Resolvent Term [Term] Resolvent
+  deriving (Show)
   
 
+search :: Program -> Question -> SearchTree
+search (Program clauses) question = Node [] resolvent trees
+  where
+    terms = bodyToTerms question
+    questionTerm = AtomTerm (Symbolic "Start")
+    resolvent = (Resolvent questionTerm terms ResolventNil) 
+    trees = search' clauses resolvent []
+
+search' :: [Clause] -> Resolvent -> Result -> [SearchTree]
+search' _ ResolventNil result = [Leaf (Just result)]
+search' clauses (Resolvent _ [] resolvent) result = search' clauses resolvent result
+search' clauses resolvent@(Resolvent f (Cut:_) _) result = [Leaf (Just result)]
+search' clauses (Resolvent f (t:ts) resolvent) result = y
+  where 
+    x = unificateClausesTerm clauses t result 
+    y = map z x 
+    z Nothing = Leaf Nothing
+    z (Just (f', b, result')) = 
+      let 
+        resolvent' = Resolvent f' b (Resolvent f ts resolvent)
+        trees = search' clauses resolvent' result'
+      in Node result resolvent' trees
+
+
+unificateClausesTerm :: [Clause] -> Term -> Result -> [Maybe (Term, [Term], Result)]
+unificateClausesTerm clauses term result =
+  filter (Nothing /=) $ map (\x -> unificateClauseTerm x term result) clauses
+
+unificateClauseTerm :: Clause -> Term -> Result -> Maybe (Term, [Term], Result)
+unificateClauseTerm (Rule t1 b) t2 result = do
+  x <- unification [t1 :? t2] result
+  return (t1, bodyToTerms b, x)
+unificateClauseTerm (Fact t1) t2 result = do
+  x <- unification [t1 :? t2] result
+  return (t1, [], x)
 
 
 bodyToTerms :: Body -> [Term]
-bodyToTerms b = foldr extract [] [body']
-  where 
+bodyToTerms b = res
+  where
     body' = simplify b
-    extract (Element t) acc = t:acc 
+    extract' (Element t) = t
+    extract (Element t) acc = t:acc
+    extract (Conjunctive t) acc = map extract' t ++ acc
     extract _ acc = acc
+    res = foldr extract [] [body']
+
+
+
+predefinedMult = concatMap 
+  (\x -> map 
+    (\y -> Fact (CompoundTerm (Symbolic "mult") [NumberTerm (Int y), NumberTerm (Int x),  NumberTerm (Int (y*x)) ]  )) 
+    [0..10]) 
+  [0..10]
+
+predefinedDec = map (\x -> Fact (CompoundTerm (Symbolic "dec") [NumberTerm (Int x),  NumberTerm (Int (x-1)) ] ))  [0..10]
