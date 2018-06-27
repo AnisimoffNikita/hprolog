@@ -8,7 +8,7 @@ data Program
 
 data Clause
   = Fact Term
-  | Rule Term Body
+  | Rule Term [Term]
   deriving (Show, Eq)
 
 data Term
@@ -20,7 +20,7 @@ data Term
   deriving (Show, Eq)
 
 data Variable
-  = Named String Int
+  = Named String
   | Anonymous
   deriving (Show, Eq)
 
@@ -40,4 +40,4 @@ data Body
   | Element Term
   deriving (Show, Eq)
 
-type Question = Body
+type Question = [Term]

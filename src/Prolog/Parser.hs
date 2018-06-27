@@ -2,7 +2,7 @@ module Prolog.Parser
   
   where 
 
-import Text.ParserCombinators.Parsec hiding (Parser)
+import Text.ParserCombinators.Parsec
 import Text.Parsec (Parsec)
 import qualified Data.Map as M
 import Control.Monad (void)
@@ -13,7 +13,6 @@ import Prolog.Simplifier
 
 -- NUMBER PARSER
 
-type Parser = Parsec String ((M.Map String Int), Int)
 
 parseInt :: Parser Number
 parseInt = do 
@@ -63,15 +62,9 @@ parseNamed :: Parser Variable
 parseNamed = do 
   a <- upper
   b <- many (alphaNum <|> char '_')
-  (vars, next) <- getState
   let 
     var = a:b
-    v = M.lookup var vars
-  case v of 
-    Just id -> return $ Named var id 
-    Nothing -> do 
-      setState (M.insert var next vars, next + 1)
-      return $ Named var next 
+  return $ Named var
 
 parseAnonymous :: Parser Variable
 parseAnonymous = char '_' >> return Anonymous
@@ -107,6 +100,8 @@ parseString = lexeme $ toTerm <$> between (char '"')(char '"') (many alphaNum)
     toTerm [x] = CompoundTerm (Symbolic "!") [AtomTerm $ Symbolic [x], AtomTerm $ Symbolic "[]"]
     toTerm (x:xs) = CompoundTerm (Symbolic "!") [AtomTerm $ Symbolic [x], toTerm xs]
 
+  
+
 parseList :: Parser Term 
 parseList = lexeme $ do 
   lexeme $ char '['
@@ -133,7 +128,6 @@ parseTerm' = try parseCompound
          <|> parseString 
          <|> parseCut
 
-
 -- CLAUSE PARSER
 
 parseFact :: Parser Clause 
@@ -146,19 +140,21 @@ parseRule :: Parser Clause
 parseRule =  do 
   a <- parseTerm'
   lexeme $ string ":-"
-  b <- simplify <$> parseBody
+  b <- parseBody'
   char '.'
   return $ Rule a b
+
 
 parseClause' :: Parser Clause
 parseClause' = lexeme $ do 
   a <- try parseRule <|> parseFact 
-  (_, next) <- getState
-  setState (M.empty, next)
   return a
 
 -- BODY PARSE
 
+
+parseBody' :: Parser [Term] 
+parseBody' = lexeme $ sepBy parseTerm' (lexeme $ char ',')
 
 parseBody :: Parser Body 
 parseBody = parseDisjunctive <|> parseParentheses
