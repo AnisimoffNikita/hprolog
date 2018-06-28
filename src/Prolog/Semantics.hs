@@ -4,6 +4,7 @@ import qualified Prolog.Syntax as S
 
 import Control.Monad.State
 import qualified Data.Map as M
+import Data.List (dropWhileEnd, intercalate, find)
 
 data Program
   = Program [Clause]
@@ -12,25 +13,47 @@ data Program
 data Clause
   = Fact Term
   | Rule Term [Term]
-  deriving (Show, Eq)
+  deriving (Eq)
+
+instance Show Clause where 
+  show (Fact head) = show head ++ "."
+  show (Rule head body) = show head ++ "(" ++ intercalate ", " (map show body)  ++ ")" ++ "."
+
 
 data Term 
   = ConstTerm Const 
   | VariableTerm Variable 
   | CompoundTerm String [Term]
   | Cut
-  deriving (Show, Eq)
+  deriving (Eq)
+
+instance Show Term where 
+  show (ConstTerm x) = show x
+  show (VariableTerm x) = show x 
+  show (CompoundTerm f terms) = f ++ "(" ++ intercalate ", " (map show terms)  ++ ")"
+  show Cut = "!"
+
 
 data Const 
   = Atom String 
   | Int Int 
   | Float Float 
-  deriving (Show, Eq)
+  deriving (Eq)
+
+instance Show Const where
+  show (Atom name) = name
+  show (Int x) = show x 
+  show (Float x) = show x 
+
 
 data Variable 
-  = Variable ID 
+  = Variable ID String
   | Anonymous 
-  deriving (Show, Eq)
+  deriving (Eq)
+
+instance Show Variable where
+  show (Variable id name) = name ++ "_" ++ show id
+  show Anonymous = "_"
 
 type ID = Int
 
@@ -69,14 +92,14 @@ semanticsVariable (S.Named x) = do
   (next, vars) <- get 
   let id = M.lookup x vars
   case id of 
-    Just id' -> return $ VariableTerm (Variable id')
+    Just id' -> return $ VariableTerm (Variable id' x)
     Nothing -> do 
       let 
         id' = next
         vars' = M.insert x id' vars
         next' = id' + 1
       put (next', vars')
-      return $ VariableTerm (Variable id')
+      return $ VariableTerm (Variable id' x)
 semanticsVariable S.Anonymous = return $ VariableTerm Anonymous
 
 

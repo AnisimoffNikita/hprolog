@@ -17,11 +17,11 @@ main :: IO ()
 main = print "!"
 
 
-s = "append([], L, L). append([X|L1], L2, [X|L3]):- append(L1, L2, L3)."
+s' = "append([], L, L). append([X|L1], L2, [X|L3]):- append(L1, L2, L3)."
+s = "f(1,1).f(N,X):-dec(N,NN),f(NN,XX),mult(XX,N,X)."
 
 Right a = runParser parseProgram () "" s
-Right q = runParser parseBody  () "" "append([1,2],[1,2],X)"
-Right q' = runParser parseTerm'  () "" "append([1,2],[3,4],X)"
+Right q = runParser parseTerm'  () "" "f(2,X)"
 
 Syn.Program cl = a 
 a' = Syn.Program $ predefinedDec ++ predefinedMult ++ cl
@@ -36,9 +36,9 @@ predefinedMult = concatMap
         [Syn.NumberTerm (Syn.Int y), Syn.NumberTerm (Syn.Int x), Syn.NumberTerm (Syn.Int (y * x))]
       )
     )
-    [0 .. 10]
+    [0 .. 2]
   )
-  [0 .. 10]
+  [0 .. 2]
 
 predefinedDec = map
   (\x -> Syn.Fact
@@ -46,6 +46,6 @@ predefinedDec = map
                   [Syn.NumberTerm (Syn.Int x), Syn.NumberTerm (Syn.Int (x - 1))]
     )
   )
-  [0 .. 10]
+  [1 .. 2]
 
 

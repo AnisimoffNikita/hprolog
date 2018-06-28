@@ -1,3 +1,68 @@
 digraph G{
-"\"[]\n\nCompoundTerm \"f\" [ConstTerm (Int 2),VariableTerm (Variable (-100))]\"->\"[]\n\nCompoundTerm \"dec\" [ConstTerm (Int 2),VariableTerm (Variable 2)]\nCompoundTerm \"f\" [VariableTerm (Variable 2),VariableTerm (Variable 3)]\nCompoundTerm \"mult\" [VariableTerm (Variable 3),ConstTerm (Int 2),VariableTerm (Variable (-100))]\"->\"[Variable 1 := VariableTerm (Variable (-100)),Variable 0 := ConstTerm (Int 2)]\n\nCompoundTerm \"f\" [ConstTerm (Int 1),VariableTerm (Variable 3)]\nCompoundTerm \"mult\" [VariableTerm (Variable 3),ConstTerm (Int 2),VariableTerm (Variable (-100))]\"->\"[Variable 2 := ConstTerm (Int 1),Variable 1 := VariableTerm (Variable (-100)),Variable 0 := ConstTerm (Int 2)]\n\nCut\nCompoundTerm \"mult\" [ConstTerm (Int 1),ConstTerm (Int 2),VariableTerm (Variable (-100))]\"->\"[Variable 3 := ConstTerm (Int 1),Variable 2 := ConstTerm (Int 1),Variable 1 := VariableTerm (Variable (-100)),Variable 0 := ConstTerm (Int 2)]\n\n\"->[Variable (-100) := ConstTerm (Int 2),Variable 3 := ConstTerm (Int 1),Variable 2 := ConstTerm (Int 1),Variable 1 := ConstTerm (Int 2),Variable 0 := ConstTerm (Int 2)]\n\"[Variable 1 := VariableTerm (Variable (-100)),Variable 0 := ConstTerm (Int 2)]\n\nCompoundTerm \"f\" [ConstTerm (Int 1),VariableTerm (Variable 3)]\nCompoundTerm \"mult\" [VariableTerm (Variable 3),ConstTerm (Int 2),VariableTerm (Variable (-100))]\"->\"[Variable 2 := ConstTerm (Int 1),Variable 1 := VariableTerm (Variable (-100)),Variable 0 := ConstTerm (Int 2)]\n\nCompoundTerm \"dec\" [ConstTerm (Int 1),VariableTerm (Variable 10)]\nCompoundTerm \"f\" [VariableTerm (Variable 10),VariableTerm (Variable 11)]\nCompoundTerm \"mult\" [VariableTerm (Variable 11),ConstTerm (Int 1),VariableTerm (Variable 3)]\nCompoundTerm \"mult\" [VariableTerm (Variable 3),ConstTerm (Int 2),VariableTerm (Variable (-100))]\"->\"[Variable 9 := VariableTerm (Variable 3),Variable 8 := ConstTerm (Int 1),Variable 2 := ConstTerm (Int 1),Variable 1 := VariableTerm (Variable (-100)),Variable 0 := ConstTerm (Int 2)]\n\nCompoundTerm \"f\" [ConstTerm (Int 0),VariableTerm (Variable 11)]\nCompoundTerm \"mult\" [VariableTerm (Variable 11),ConstTerm (Int 1),VariableTerm (Variable 3)]\nCompoundTerm \"mult\" [VariableTerm (Variable 3),ConstTerm (Int 2),VariableTerm (Variable (-100))]\"->\"[Variable 10 := ConstTerm (Int 0),Variable 9 := VariableTerm (Variable 3),Variable 8 := ConstTerm (Int 1),Variable 2 := ConstTerm (Int 1),Variable 1 := VariableTerm (Variable (-100)),Variable 0 := ConstTerm (Int 2)]\n\nCompoundTerm \"dec\" [ConstTerm (Int 0),VariableTerm (Variable 22)]\nCompoundTerm \"f\" [VariableTerm (Variable 22),VariableTerm (Variable 23)]\nCompoundTerm \"mult\" [VariableTerm (Variable 23),ConstTerm (Int 0),VariableTerm (Variable 11)]\nCompoundTerm \"mult\" [VariableTerm (Variable 11),ConstTerm (Int 1),VariableTerm (Variable 3)]\nCompoundTerm \"mult\" [VariableTerm (Variable 3),ConstTerm (Int 2),VariableTerm (Variable (-100))]\"->\"[Variable 21 := VariableTerm (Variable 11),Variable 20 := ConstTerm (Int 0),Variable 10 := ConstTerm (Int 0),Variable 9 := VariableTerm (Variable 3),Variable 8 := ConstTerm (Int 1),Variable 2 := ConstTerm (Int 1),Variable 1 := VariableTerm (Variable (-100)),Variable 0 := ConstTerm (Int 2)]\n\nCompoundTerm \"f\" [ConstTerm (Int (-1)),VariableTerm (Variable 23)]\nCompoundTerm \"mult\" [VariableTerm (Variable 23),ConstTerm (Int 0),VariableTerm (Variable 11)]\nCompoundTerm \"mult\" [VariableTerm (Variable 11),ConstTerm (Int 1),VariableTerm (Variable 3)]\nCompoundTerm \"mult\" [VariableTerm (Variable 3),ConstTerm (Int 2),VariableTerm (Variable (-100))]\"
+"{}
+f(3, X_0)"
+->
+"{X_1001 := X_0, N_1000 := 3}
+dec(3, NN_1002)
+f(NN_1002, XX_1003)
+mult(XX_1003, 3, X_0)"
+
+"{X_1001 := X_0, N_1000 := 3}
+dec(3, NN_1002)
+f(NN_1002, XX_1003)
+mult(XX_1003, 3, X_0)"
+->
+"{NN_1002 := 2, X_1001 := X_0, N_1000 := 3}
+f(2, XX_1003)
+mult(XX_1003, 3, X_0)"
+
+"{NN_1002 := 2, X_1001 := X_0, N_1000 := 3}
+f(2, XX_1003)
+mult(XX_1003, 3, X_0)"
+->
+"{X_1009 := XX_1003, N_1008 := 2, NN_1002 := 2, X_1001 := X_0, N_1000 := 3}
+dec(2, NN_1010)
+f(NN_1010, XX_1011)
+mult(XX_1011, 2, XX_1003)
+mult(XX_1003, 3, X_0)"
+
+"{X_1009 := XX_1003, N_1008 := 2, NN_1002 := 2, X_1001 := X_0, N_1000 := 3}
+dec(2, NN_1010)
+f(NN_1010, XX_1011)
+mult(XX_1011, 2, XX_1003)
+mult(XX_1003, 3, X_0)"
+->
+"{NN_1010 := 1, X_1009 := XX_1003, N_1008 := 2, NN_1002 := 2, X_1001 := X_0, N_1000 := 3}
+f(1, XX_1011)
+mult(XX_1011, 2, XX_1003)
+mult(XX_1003, 3, X_0)"
+
+"{NN_1010 := 1, X_1009 := XX_1003, N_1008 := 2, NN_1002 := 2, X_1001 := X_0, N_1000 := 3}
+f(1, XX_1011)
+mult(XX_1011, 2, XX_1003)
+mult(XX_1003, 3, X_0)"
+->
+"{XX_1011 := 1, NN_1010 := 1, X_1009 := XX_1003, N_1008 := 2, NN_1002 := 2, X_1001 := X_0, N_1000 := 3}
+mult(1, 2, XX_1003)
+mult(XX_1003, 3, X_0)"
+
+"{XX_1011 := 1, NN_1010 := 1, X_1009 := XX_1003, N_1008 := 2, NN_1002 := 2, X_1001 := X_0, N_1000 := 3}
+mult(1, 2, XX_1003)
+mult(XX_1003, 3, X_0)"
+->
+"{XX_1003 := 2, XX_1011 := 1, NN_1010 := 1, X_1009 := 2, N_1008 := 2, NN_1002 := 2, X_1001 := X_0, N_1000 := 3}
+mult(2, 3, X_0)"
+
+"{XX_1003 := 2, XX_1011 := 1, NN_1010 := 1, X_1009 := 2, N_1008 := 2, NN_1002 := 2, X_1001 := X_0, N_1000 := 3}
+mult(2, 3, X_0)"
+->
+"{X_0 := 6, XX_1003 := 2, XX_1011 := 1, NN_1010 := 1, X_1009 := 2, N_1008 := 2, NN_1002 := 2, X_1001 := 6, N_1000 := 3}
+"
+
+"{X_0 := 6, XX_1003 := 2, XX_1011 := 1, NN_1010 := 1, X_1009 := 2, N_1008 := 2, NN_1002 := 2, X_1001 := 6, N_1000 := 3}
+"
+->
+"{X_0 := 6, XX_1003 := 2, XX_1011 := 1, NN_1010 := 1, X_1009 := 2, N_1008 := 2, NN_1002 := 2, X_1001 := 6, N_1000 := 3}"
+
+"{X_0 := 6, XX_1003 := 2, XX_1011 := 1, NN_1010 := 1, X_1009 := 2, N_1008 := 2, NN_1002 := 2, X_1001 := 6, N_1000 := 3}"
 }

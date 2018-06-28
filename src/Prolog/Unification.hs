@@ -1,20 +1,21 @@
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE FlexibleInstances #-}
 module Prolog.Unification where
 
 import qualified Prolog.Syntax                 as Syntax
 import           Prolog.Semantics
-import           Data.List                      ( find )
 import           Control.Monad                  ( zipWithM )
 import           Debug.Trace
 import qualified Data.Map                      as M
 import           Control.Monad.Writer
 import           Control.Monad.State
 import           Control.Monad.Trans.Maybe
-import Data.List (dropWhileEnd, intercalate)
+import Data.List (dropWhileEnd, intercalate, find)
 
 
 data ResultPair
   = Variable := Term
+  | Variable :=: Variable
   deriving (Show, Eq)
 data Target 
   = Term :? Term 
@@ -23,6 +24,8 @@ data Target
 type Targets = [Target]
 type Result = [ResultPair]
 
+instance {-# OVERLAPPING #-} Show [ResultPair] where 
+  show result = "{" ++ intercalate ", " (map show result) ++ "}"
 
 data SearchTree
   = Leaf (Maybe Result)
@@ -42,9 +45,9 @@ search :: Syntax.Program -> Syntax.Question -> SearchTree
 search (Syntax.Program clauses) question = Node result resolvent tree
   where
     result = []
-    resolvent = evalState (mapM semanticsTerm question) (-100, M.empty)
+    resolvent = evalState (mapM semanticsTerm question) (0, M.empty)
     trees = search' clauses resolvent result
-    (_, tree) = evalState (search' clauses resolvent result) (0, M.empty)
+    (_, tree) = evalState (search' clauses resolvent result) (1000, M.empty)
 
 search' :: [Syntax.Clause] -> Resolvent -> Result -> SemanticsState (Bool, [SearchTree])
 search' _ [] result = return (False, [Leaf (Just result)])
@@ -60,10 +63,13 @@ search' sclauses (t:ts) result = do
       let 
         resolvent' = updateResolvent (b ++ ts) result'
       (cutted, trees) <- search' sclauses resolvent' result'
-      return (cutted, Node result resolvent' trees)
+      return (cutted, Node result' resolvent' trees)
   flags <- mapM z x 
-  let trees = map snd $ takeWhile' (\(x,_) -> not x) flags
-  return (length flags == length trees, trees)
+  let trees = map snd $ takeWhile' (\(x,_) -> not x)  flags
+
+  if null trees 
+    then return (length flags == length trees, [Leaf Nothing])
+    else return (length flags == length trees, trees)
 
 takeWhile' :: (a -> Bool) -> [a] -> [a]
 takeWhile' f [] = []
@@ -80,7 +86,7 @@ updateTarget result term = term'
 
 unificateClausesTerm :: [Clause] -> Term -> Result -> [Maybe ([Term], Result)]
 unificateClausesTerm clauses term result =
-  filter (Nothing /=) $ map (\x -> unificateClauseTerm x term result) clauses
+  map (\x -> unificateClauseTerm x term result) clauses
 
 unificateClauseTerm :: Clause -> Term -> Result -> Maybe ([Term], Result)
 unificateClauseTerm (Rule t1 b) t2 result = do
@@ -109,11 +115,12 @@ updateEquals t p equals = Just $ map f equals
 
 updateResult :: Variable -> Term -> Result -> Maybe Result
 updateResult t p results = concat <$> mapM f results
- where
-  f x@(t' := p') =
-    let 
-      p'' = replaceOccurrence t p p'
-    in if p' == p'' then Just [x] else unification [VariableTerm t' :? p''] []
+  where
+    f x@(t' := p') =
+      let 
+        (VariableTerm t'')  = replaceOccurrence t p (VariableTerm t')
+        p'' = replaceOccurrence t p p'
+      in if p' == p'' && t' == t'' then Just [x] else unification [VariableTerm t'' :? p''] []
 
 replaceOccurrence :: Variable -> Term -> Term -> Term
 replaceOccurrence t q (CompoundTerm f args) = CompoundTerm f (map update args)
@@ -156,6 +163,14 @@ printResolvent r = intercalate "\n" $ map show r
 
 
 printer :: SearchTree -> String 
-printer (Node result resolvent trees) = intercalate "\n" $ map printer trees
-printer (Leaf (Just result)) = printResult result
+printer t@(Node result resolvent trees) = (intercalate "\n" $ map f trees) ++ "\n\n" ++ rest
+  where 
+    header = makeHeader t
+    f tree = header ++ "\n->\n" ++ makeHeader tree
+    rest :: String
+    rest = concatMap printer trees
+printer (Leaf (Just result)) = "\"" ++ printResult result ++ "\""
 printer (Leaf Nothing) = "\"fail\""
+
+makeHeader (Node result resolvent trees) = "\"" ++ printResult result ++ "\n" ++ printResolvent resolvent ++ "\""
+makeHeader x = printer x
