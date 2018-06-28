@@ -29,7 +29,7 @@ instance {-# OVERLAPPING #-} Show [ResultPair] where
 
 data SearchTree
   = Ok Result
-  | Fail Result
+  | Fail Term Term
   | Node Result Resolvent [SearchTree]
   deriving (Show)
 
@@ -58,9 +58,10 @@ search' sclauses (Cut:ts) result = do
 search' sclauses (t:ts) result = do 
   clauses <- mapM semanticsClause' sclauses
   let 
-    x = unificateClausesTerm clauses t result 
-    z Nothing = return (False, Fail result)
-    z (Just (b, result')) = do 
+    x = zip (unificateClausesTerm clauses t result) clauses
+    z (Nothing, (Rule term _)) = return (False, Fail term t)
+    z (Nothing, (Fact term)) = return (False, Fail term t)
+    z (Just (b, result'), _) = do 
       let 
         resolvent' = updateResolvent (b ++ ts) result'
       (cutted, trees) <- search' sclauses resolvent' result'
@@ -68,9 +69,7 @@ search' sclauses (t:ts) result = do
   flags <- mapM z x 
   let trees = map snd $ takeWhile' (\(x,_) -> not x)  flags
 
-  if null trees 
-    then return (length flags == length trees, [Fail result])
-    else return (length flags == length trees, trees)
+  return (length flags /= length trees, trees)
 
 takeWhile' :: (a -> Bool) -> [a] -> [a]
 takeWhile' f [] = []
@@ -173,8 +172,8 @@ printer' t@(Node result resolvent trees) = (intercalate "\n" $ map f trees) ++ "
     rest :: String
     rest = concatMap printer' trees
 printer' (Ok result) = "\"OK: " ++ printResult result ++ "\""
-printer' (Fail result) = ""
+printer' (Fail _ _) = ""
 
 makeHeader (Node result resolvent trees) = "\"" ++ printResult result ++ "\n" ++ printResolvent resolvent ++ "\""
-makeHeader (Fail result) = "\"Fail: " ++ printResult result ++ "\""
+makeHeader (Fail t1 t2) = "\"Fail: " ++ show t1 ++ "/=" ++ show t2 ++ "\""
 makeHeader x = printer' x

@@ -18,13 +18,15 @@ main = print "!"
 
 
 s' = "append([], L, L). append([X|L1], L2, [X|L3]):- append(L1, L2, L3)."
-s = "f(1,1).f(N,X):-dec(N,NN),f(NN,XX),mult(XX,N,X)."
+s0 = "f(1,1).f(N,X):-dec(N,NN),f(NN,XX),mult(XX,N,X)."
+
+s = "loves(vincent, mia). loves(marcellus, mia). loves(pumpkin, honey_bunny). loves(honey_bunny, pumpkin). jealous(X, Y) :-loves(X, Z),loves(Y, Z)."
 
 Right a = runParser parseProgram () "" s
-Right q = runParser parseTerm'  () "" "f(2,X)"
+Right q = runParser parseTerm'  () "" "jealous(X, Y)"
 
 Syn.Program cl = a 
-a' = Syn.Program $ predefinedDec ++ predefinedMult ++ cl
+a' = Syn.Program $ cl
 
 
 
