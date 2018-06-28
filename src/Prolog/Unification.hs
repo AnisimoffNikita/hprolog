@@ -28,7 +28,8 @@ instance {-# OVERLAPPING #-} Show [ResultPair] where
   show result = "{" ++ intercalate ", " (map show result) ++ "}"
 
 data SearchTree
-  = Leaf (Maybe Result)
+  = Ok Result
+  | Fail Result
   | Node Result Resolvent [SearchTree]
   deriving (Show)
 
@@ -50,7 +51,7 @@ search (Syntax.Program clauses) question = Node result resolvent tree
     (_, tree) = evalState (search' clauses resolvent result) (1000, M.empty)
 
 search' :: [Syntax.Clause] -> Resolvent -> Result -> SemanticsState (Bool, [SearchTree])
-search' _ [] result = return (False, [Leaf (Just result)])
+search' _ [] result = return (False, [Ok result])
 search' sclauses (Cut:ts) result = do 
   (_, trees) <- search' sclauses ts result 
   return (True, trees)
@@ -58,7 +59,7 @@ search' sclauses (t:ts) result = do
   clauses <- mapM semanticsClause' sclauses
   let 
     x = unificateClausesTerm clauses t result 
-    z Nothing = return (False, Leaf Nothing)
+    z Nothing = return (False, Fail result)
     z (Just (b, result')) = do 
       let 
         resolvent' = updateResolvent (b ++ ts) result'
@@ -68,7 +69,7 @@ search' sclauses (t:ts) result = do
   let trees = map snd $ takeWhile' (\(x,_) -> not x)  flags
 
   if null trees 
-    then return (length flags == length trees, [Leaf Nothing])
+    then return (length flags == length trees, [Fail result])
     else return (length flags == length trees, trees)
 
 takeWhile' :: (a -> Bool) -> [a] -> [a]
@@ -161,16 +162,19 @@ printResult = show
 printResolvent :: Resolvent -> String 
 printResolvent r = intercalate "\n" $ map show r
 
-
 printer :: SearchTree -> String 
-printer t@(Node result resolvent trees) = (intercalate "\n" $ map f trees) ++ "\n\n" ++ rest
+printer t = "digraph G{\n" ++ printer' t ++ "\n}"
+
+printer' :: SearchTree -> String 
+printer' t@(Node result resolvent trees) = (intercalate "\n" $ map f trees) ++ "\n\n" ++ rest
   where 
     header = makeHeader t
     f tree = header ++ "\n->\n" ++ makeHeader tree
     rest :: String
-    rest = concatMap printer trees
-printer (Leaf (Just result)) = "\"" ++ printResult result ++ "\""
-printer (Leaf Nothing) = "\"fail\""
+    rest = concatMap printer' trees
+printer' (Ok result) = "\"OK: " ++ printResult result ++ "\""
+printer' (Fail result) = ""
 
 makeHeader (Node result resolvent trees) = "\"" ++ printResult result ++ "\n" ++ printResolvent resolvent ++ "\""
-makeHeader x = printer x
+makeHeader (Fail result) = "\"Fail: " ++ printResult result ++ "\""
+makeHeader x = printer' x

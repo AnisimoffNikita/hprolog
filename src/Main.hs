@@ -49,3 +49,4 @@ predefinedDec = map
   [1 .. 2]
 
 
+--  dot = printer $ search a' [q]
