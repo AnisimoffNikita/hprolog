@@ -45,6 +45,9 @@ semanticsClause (S.Rule term terms) = do
   term' <- semanticsTerm term 
   terms' <- mapM semanticsTerm terms
   return $ Rule term' terms'
+semanticsClause (S.Fact term) = do 
+  term' <- semanticsTerm term 
+  return $ Fact term'
 
 semanticsTerm :: S.Term-> SemanticsState Term  
 semanticsTerm (S.AtomTerm a) = semanticsAtom a 

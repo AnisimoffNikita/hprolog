@@ -10,7 +10,7 @@ import qualified Data.Map                      as M
 import           Control.Monad.Writer
 import           Control.Monad.State
 import           Control.Monad.Trans.Maybe
-
+import Data.List (dropWhileEnd, intercalate)
 
 
 data ResultPair
@@ -31,39 +31,64 @@ data SearchTree
 
 type Resolvent = [Term]
 
+semanticsClause' clause = do 
+  x <- semanticsClause clause
+  (next, _) <- get 
+  put (next, M.empty)
+  return x
+
 
 search :: Syntax.Program -> Syntax.Question -> SearchTree
-search (Syntax.Program clauses) question = Node result resolvent trees
+search (Syntax.Program clauses) question = Node result resolvent tree
   where
     result = []
-    resolvent = []
+    resolvent = evalState (mapM semanticsTerm question) (-100, M.empty)
     trees = search' clauses resolvent result
+    (_, tree) = evalState (search' clauses resolvent result) (0, M.empty)
 
-search' :: [Syntax.Clause] -> Resolvent -> Result -> [SearchTree]
-search' _ [] result = [Leaf (Just result)]
-search' clauses (t:ts) result = y
-  where 
+search' :: [Syntax.Clause] -> Resolvent -> Result -> SemanticsState (Bool, [SearchTree])
+search' _ [] result = return (False, [Leaf (Just result)])
+search' sclauses (Cut:ts) result = do 
+  (_, trees) <- search' sclauses ts result 
+  return (True, trees)
+search' sclauses (t:ts) result = do 
+  clauses <- mapM semanticsClause' sclauses
+  let 
     x = unificateClausesTerm clauses t result 
-    y = map z x 
-    z Nothing = Leaf Nothing
-    z (Just (f', b, result')) = 
+    z Nothing = return (False, Leaf Nothing)
+    z (Just (b, result')) = do 
       let 
-        resolvent' = Resolvent f' b (Resolvent f ts resolvent)
-        trees = search' clauses resolvent' result'
-      in Node result resolvent' trees
+        resolvent' = updateResolvent (b ++ ts) result'
+      (cutted, trees) <- search' sclauses resolvent' result'
+      return (cutted, Node result resolvent' trees)
+  flags <- mapM z x 
+  let trees = map snd $ takeWhile' (\(x,_) -> not x) flags
+  return (length flags == length trees, trees)
 
+takeWhile' :: (a -> Bool) -> [a] -> [a]
+takeWhile' f [] = []
+takeWhile' f (x:xs) = if not . f $ x then [x] else x : takeWhile' f xs
 
-unificateClausesTerm :: [Clause] -> Term -> Result -> [Maybe (Term, [Term], Result)]
+updateResolvent :: Resolvent -> Result -> Resolvent 
+updateResolvent resolvent result = map (updateTarget result) resolvent
+
+updateTarget :: Result -> Term -> Term 
+updateTarget result term = term'
+  where 
+    term' = foldl updater term result 
+    updater term (v' := t') = replaceOccurrence v' t' term
+
+unificateClausesTerm :: [Clause] -> Term -> Result -> [Maybe ([Term], Result)]
 unificateClausesTerm clauses term result =
   filter (Nothing /=) $ map (\x -> unificateClauseTerm x term result) clauses
 
-unificateClauseTerm :: Clause -> Term -> Result -> Maybe (Term, [Term], Result)
+unificateClauseTerm :: Clause -> Term -> Result -> Maybe ([Term], Result)
 unificateClauseTerm (Rule t1 b) t2 result = do
   x <- unification [t1 :? t2] result
-  return (t1, b, x)
+  return (b, x)
 unificateClauseTerm (Fact t1) t2 result = do
   x <- unification [t1 :? t2] result
-  return (t1, [], x)
+  return ([], x)
 
 
 
@@ -86,8 +111,9 @@ updateResult :: Variable -> Term -> Result -> Maybe Result
 updateResult t p results = concat <$> mapM f results
  where
   f x@(t' := p') =
-    let p'' = replaceOccurrence t p p'
-    in  if p' == p'' then Just [x] else unification [VariableTerm t' :? p''] []
+    let 
+      p'' = replaceOccurrence t p p'
+    in if p' == p'' then Just [x] else unification [VariableTerm t' :? p''] []
 
 replaceOccurrence :: Variable -> Term -> Term -> Term
 replaceOccurrence t q (CompoundTerm f args) = CompoundTerm f (map update args)
@@ -103,9 +129,10 @@ replaceOccurrence _ _ p                   = p
 unificateTerms :: Term -> Term -> Maybe (Targets, Maybe ResultPair)
 unificateTerms t p = case (t, p) of
   (Cut                   , _                  ) -> Just ([], Nothing)
+  (_                   , Cut                  ) -> Just ([], Nothing)
   (VariableTerm Anonymous, _                  ) -> Just ([], Nothing)
   (VariableTerm x        , ConstTerm _        ) -> Just ([], Just (x := p))
-  (VariableTerm x        , VariableTerm _     ) -> Just ([], Just (x := p))
+  (VariableTerm x        , VariableTerm y     ) -> Just ([], Just (x := p))
   (VariableTerm x        , CompoundTerm f args) -> 
     case find (t ==) args of
       Just _  -> Nothing
@@ -121,4 +148,14 @@ unificateTerms t p = case (t, p) of
 
 
 
+printResult :: Result -> String
+printResult = show
 
+printResolvent :: Resolvent -> String 
+printResolvent r = intercalate "\n" $ map show r
+
+
+printer :: SearchTree -> String 
+printer (Node result resolvent trees) = intercalate "\n" $ map printer trees
+printer (Leaf (Just result)) = printResult result
+printer (Leaf Nothing) = "\"fail\""

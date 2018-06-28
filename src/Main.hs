@@ -17,11 +17,11 @@ main :: IO ()
 main = print "!"
 
 
-s = "f(1,1):-!.f(N,X):-dec(N,M),f(M,Y),mult(Y,N,X)."
+s = "append([], L, L). append([X|L1], L2, [X|L3]):- append(L1, L2, L3)."
 
 Right a = runParser parseProgram () "" s
 Right q = runParser parseBody  () "" "append([1,2],[1,2],X)"
-Right q' = runParser parseTerm'  () "" "f(3,R)"
+Right q' = runParser parseTerm'  () "" "append([1,2],[3,4],X)"
 
 Syn.Program cl = a 
 a' = Syn.Program $ predefinedDec ++ predefinedMult ++ cl
@@ -47,3 +47,5 @@ predefinedDec = map
     )
   )
   [0 .. 10]
+
+
