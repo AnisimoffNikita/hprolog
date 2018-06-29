@@ -9,6 +9,7 @@ import           Data.List                      ( intercalate
 import           Prolog.Helper
 import qualified Prolog.Syntax                 as Syntax
 import           Prolog.Semantics
+import           Prolog.Math
 
 import           Debug.Trace
 
@@ -57,7 +58,16 @@ search' _        []         result = return (False, [Ok result])
 search' sclauses (Cut : ts) result = do
   (_, trees) <- search' sclauses ts result
   return (True, trees)
-search' sclauses (CompoundTerm "is" [var, formyla] : ts) result = undefined
+
+search' sclauses (CompoundTerm "is" [var, formula] : ts) result = do 
+  let r = evaluate formula
+      t = unification [var :? r] result
+  case t of 
+    Nothing -> return (False, [Fail var formula])
+    Just result' -> do
+        let resolvent' = updateResolvent ts result'
+        (cutted, trees) <- search' sclauses resolvent' result'
+        return (cutted, [Node result' resolvent' trees])
 
 search' sclauses (t : ts) result = do
   clauses <- mapM semanticsClause' sclauses

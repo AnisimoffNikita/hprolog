@@ -11,7 +11,6 @@ import           Control.Monad.Trans.Maybe
 import qualified Prolog.Syntax as Syn
 import Prolog.Semantics
 import Prolog.Parser
-import Prolog.Prolog
 
 main :: IO ()
 main = print "!"
@@ -22,19 +21,22 @@ s0 = "f(1,1).f(N,X):-dec(N,NN),f(NN,XX),mult(XX,N,X)."
 
 s = "loves(vincent, mia). loves(marcellus, mia). loves(pumpkin, honey_bunny). loves(honey_bunny, pumpkin). jealous(X, Y) :-loves(X, Z),loves(Y, Z)."
 
-f = "f(N,X):- M is N - 1, f(M,Y), X is Y*N."
+f = "f(1,1) :- !.f(N,X):- M is N - 1, f(M,Y), X is Y*N."
 
-Right a = runParser parseProgram () "" s
-Right q = runParser parseTerm'  () "" "jealous(X, Y)"
+Right a = runParser parseProgram () "" f
+Right q = runParser parseTerm'  () "" "f(3,X)"
 
 Syn.Program cl = a 
 a' = Syn.Program $ cl
 
-dec :: [Term] -> Term 
-dec [ConstTerm (Int x)] = ConstTerm (Int (x - 1))
-dec [ConstTerm (Float x)] = ConstTerm (Float (x - 1))
-dec _ = error "incompatible type"
 
+
+u = ConstTerm (Int 4)
+i = ConstTerm (Int 3)
+o = ConstTerm (Int 5)
+
+p = CompoundTerm "*" [i, o]
+l = CompoundTerm "-" [u, p]
 
 -- predefinedMult = concatMap
 --   (\x -> map
