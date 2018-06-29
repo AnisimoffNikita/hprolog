@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances #-}
 module Prolog.Syntax where
 
 import Data.List

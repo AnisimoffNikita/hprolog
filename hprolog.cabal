@@ -22,7 +22,13 @@ executable hprolog
                      , mtl
                      , containers
                      , transformers
-  other-modules:       Prolog.Syntax, Prolog.Parser, Prolog.Unification, Prolog.Semantics
+  other-modules:       Prolog.Syntax
+                     , Prolog.Parser
+                     , Prolog.Prolog
+                     , Prolog.Semantics
+                     , Prolog.Printer
+                     , Prolog.Math
+                     , Prolog.Helper
   default-extensions:  DataKinds
                      , GADTs
                      , KindSignatures

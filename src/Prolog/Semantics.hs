@@ -6,6 +6,7 @@ import Control.Monad.State
 import qualified Data.Map as M
 import Data.List (dropWhileEnd, intercalate, find)
 
+
 data Program
   = Program [Clause]
   deriving (Show)
