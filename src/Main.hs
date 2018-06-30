@@ -21,7 +21,7 @@ s0 = "f(1,1).f(N,X):-dec(N,NN),f(NN,XX),mult(XX,N,X)."
 
 s = "loves(vincent, mia). loves(marcellus, mia). loves(pumpkin, honey_bunny). loves(honey_bunny, pumpkin). jealous(X, Y) :-loves(X, Z),loves(Y, Z)."
 
-f = "f(1,1) :- !.f(N,X):- M is N - 1, f(M,Y), X is Y*N."
+f = "f(1,1).f(N,X):- M is N - 1, f(M,Y), X is Y*N."
 
 Right a = runParser parseProgram () "" f
 Right q = runParser parseTerm'  () "" "f(3,X)"

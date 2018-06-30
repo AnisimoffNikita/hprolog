@@ -20,6 +20,8 @@ data Term
   | Cut
   deriving (Show, Eq)
 
+
+
 data Variable
   = Named String
   | Anonymous
@@ -42,3 +44,12 @@ data Body
   deriving (Show, Eq)
 
 type Question = [Term]
+
+data TermInfo = TermInfo String Int
+
+termInfo :: Term -> TermInfo 
+termInfo term = 
+  case term of 
+    CompoundTerm (Symbolic s) args' -> TermInfo s (length args')
+    AtomTerm (Symbolic s) -> TermInfo s 0
+    _ -> error "syntax termInfo is not implemented"

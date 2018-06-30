@@ -2,6 +2,7 @@
 module Prolog.Prolog where
 
 import           Control.Monad.State
+import Data.Maybe(fromMaybe)
 import qualified Data.Map                      as M
 import           Data.List                      ( intercalate
                                                 , find
@@ -54,17 +55,17 @@ search'
   :: [Syntax.Clause]
   -> Resolvent
   -> Result
-  -> SemanticsState (Bool, [SearchTree])
-search' _        []         result = return (False, [Ok result])
-search' sclauses (Cut : ts) result = do
+  -> SemanticsState (Maybe TermInfo, [SearchTree])
+search' _        []         result = return (Nothing, [Ok result])
+search' sclauses (cut@(Cut f args) : ts) result = do
   (_, trees) <- search' sclauses ts result
-  return (True, trees)
+  return (Just (TermInfo f args), trees)
 
 search' sclauses (CompoundTerm "is" [var, formula] : ts) result = do 
   let r = eval formula
       t = traceShow  formula $ r >>= (\x -> unification [var :? x] result)
   case t of 
-    Nothing -> return (False, [Fail var formula])
+    Nothing -> return (Nothing, [Fail var formula])
     Just result' -> do
         let resolvent' = updateResolvent ts result'
         (cutted, trees) <- search' sclauses resolvent' result'
@@ -73,16 +74,20 @@ search' sclauses (CompoundTerm "is" [var, formula] : ts) result = do
 search' sclauses (t : ts) result = do
   clauses <- mapM semanticsClause' sclauses
   let x = zip (unificateClausesTerm clauses t result) clauses
-      z (Nothing          , Rule p _) = return (False, Fail p t)
-      z (Nothing          , Fact p  ) = return (False, Fail p t)
+      z (Nothing          , Rule p _) = return (Nothing, Fail p t)
+      z (Nothing          , Fact p  ) = return (Nothing, Fail p t)
       z (Just (b, result'), _       ) = do
         let resolvent' = updateResolvent (b ++ ts) result'
         (cutted, trees) <- search' sclauses resolvent' result'
         return (cutted, Node result' resolvent' trees)
   flags <- mapM z x
-  let trees = map snd $ takeWhile' (\(x, _) -> not x) flags
+  let
+    cutInfo = termInfo t 
+    trees = map snd $ takeWhile' check flags
+    check (x, _) = maybe True (/= cutInfo) x
+    needCut = if length flags /= length trees then Just $ termInfo t else Nothing
 
-  return (length flags /= length trees, trees)
+  return (needCut, trees)
 
 
 updateResolvent :: Resolvent -> Result -> Resolvent
@@ -154,8 +159,8 @@ unificateTerms t p = case (t, p) of
     if f1 == f2 && length args1 == length args2
       then Just (zipWith (:?) args1 args2, Nothing)
       else Nothing
-  (Cut, _  ) -> error "cut unification"
-  (_  , Cut) -> error "cut unification"
+  (Cut _ _, _  ) -> error "cut unification"
+  (_  , Cut _ _) -> error "cut unification"
   (t  , p  ) -> if t == p then Just ([], Nothing) else Nothing
 
 

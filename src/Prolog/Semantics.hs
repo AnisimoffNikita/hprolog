@@ -25,14 +25,14 @@ data Term
   = ConstTerm Const 
   | VariableTerm Variable 
   | CompoundTerm String [Term]
-  | Cut
+  | Cut String Int
   deriving (Eq)
 
 instance Show Term where 
   show (ConstTerm x) = show x
   show (VariableTerm x) = show x 
   show (CompoundTerm f terms) = f ++ "(" ++ intercalate ", " (map show terms)  ++ ")"
-  show Cut = "!"
+  show (Cut _ _) = "!"
 
 
 data Const 
@@ -58,27 +58,41 @@ instance Show Variable where
 
 type ID = Int
 
+data TermInfo 
+  = TermInfo String Int
+  deriving (Eq)
 
--- semanticsProgram :: S.Program -> Program 
--- semanticsProgram (S.Program clauses) = Program (map semanticsClause clauses) 
 
 type SemanticsState = State (Int, M.Map String Int)
 
+
+termInfo :: Term -> TermInfo 
+termInfo term = 
+  case term of 
+    CompoundTerm s args' -> TermInfo s (length args')
+    ConstTerm (Atom s) -> TermInfo s 0
+    _ -> error "semantic termInfo is not implemented"
+
 semanticsClause :: S.Clause -> SemanticsState Clause 
-semanticsClause (S.Rule term terms) = do 
-  term' <- semanticsTerm term 
-  terms' <- mapM semanticsTerm terms
+semanticsClause (S.Rule term terms) = do
+  term' <- semanticsTerm term
+  let 
+    cutInfo = termInfo term' 
+  terms' <- mapM (semanticsTerm' cutInfo) terms
   return $ Rule term' terms'
 semanticsClause (S.Fact term) = do 
   term' <- semanticsTerm term 
   return $ Fact term'
 
-semanticsTerm :: S.Term-> SemanticsState Term  
-semanticsTerm (S.AtomTerm a) = semanticsAtom a 
-semanticsTerm (S.NumberTerm a) = semanticsNumber a 
-semanticsTerm (S.VariableTerm a) = semanticsVariable a
-semanticsTerm (S.CompoundTerm a t) = semanticsCompoundTerm a t
-semanticsTerm S.Cut = return Cut
+semanticsTerm' :: TermInfo -> S.Term -> SemanticsState Term  
+semanticsTerm' _ (S.AtomTerm a) = semanticsAtom a 
+semanticsTerm' _ (S.NumberTerm a) = semanticsNumber a 
+semanticsTerm' _ (S.VariableTerm a) = semanticsVariable a
+semanticsTerm' _ (S.CompoundTerm a t) = semanticsCompoundTerm a t
+semanticsTerm' (TermInfo f arity) S.Cut = return $ Cut f arity
+
+semanticsTerm :: S.Term -> SemanticsState Term  
+semanticsTerm = semanticsTerm' (TermInfo "" 0)
 
 semanticsAtom :: S.Atom -> SemanticsState Term 
 semanticsAtom (S.Symbolic s) = return $ ConstTerm (Atom s)
@@ -106,5 +120,5 @@ semanticsVariable S.Anonymous = return $ VariableTerm Anonymous
 
 semanticsCompoundTerm :: S.Atom -> [S.Term]-> SemanticsState Term 
 semanticsCompoundTerm (S.Symbolic f) terms = do 
-  terms' <- mapM semanticsTerm terms
+  terms' <- mapM semanticsTerm terms 
   return $ CompoundTerm f terms'
