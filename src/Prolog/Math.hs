@@ -14,6 +14,22 @@ data Expression a
   | Unary (UnFunc a) (Expression a)
   | Value a
 
+
+termToExpression :: Term -> Maybe (Either (Expression Int) (Expression Float))
+termToExpression (ConstTerm (Int a)) = Just (Left (Value a))
+termToExpression (ConstTerm (Float a)) = Just (Right (Value a))
+termToExpression (CompoundTerm func [x, y]) = do 
+  f <- M.lookup func binaryIntDB
+  g <- M.lookup func binaryFloatDB
+  x' <- termToExpression x 
+  y' <- termToExpression y 
+  case (x', y') of 
+    (Left x, Left y) -> return . Left $ Binary f x y
+    (Right x, Right y) -> return . Right $ Binary g x y
+    (_, _) -> Nothing
+
+
+
 unaryIntDB :: (Num a) => M.Map String (a -> a)
 unaryIntDB = M.fromList 
   [("abs", abs)]
@@ -34,34 +50,6 @@ binaryFloatDB = M.fromList
   ,("-", (-))
   ,("*", (*))]
 
-termToExpressionInt :: Term -> Maybe (Expression Int)
-termToExpressionInt (CompoundTerm func [x, y]) =
-  Binary 
-    <$> M.lookup func binaryIntDB
-    <*> termToExpressionInt x 
-    <*> termToExpressionInt y
-termToExpressionInt (CompoundTerm func [x]) =
-  Unary 
-    <$> M.lookup func unaryIntDB
-    <*> termToExpressionInt x 
-termToExpressionInt (ConstTerm (Int   x)) = Just (Value x)
-termToExpressionInt (ConstTerm (Float x)) = Nothing
-termToExpressionInt _ = Nothing
-
-
-termToExpressionFloat :: Term -> Maybe (Expression Float)
-termToExpressionFloat (CompoundTerm func [x, y]) =
-  Binary 
-    <$> M.lookup func binaryFloatDB
-    <*> termToExpressionFloat x 
-    <*> termToExpressionFloat y
-termToExpressionFloat (CompoundTerm func [x]) =
-  Unary 
-    <$> M.lookup func unaryFloatDB
-    <*> termToExpressionFloat x 
-termToExpressionFloat (ConstTerm (Int   x)) = Nothing
-termToExpressionFloat (ConstTerm (Float x)) = Just (Value x)
-termToExpressionFloat _ = Nothing
 
 
 eval' :: Expression a -> a
@@ -71,9 +59,10 @@ eval' (Value a) = a
 
 
 eval :: Term -> Maybe Term 
-eval expr = 
-  case (termToExpressionFloat expr, termToExpressionInt expr) of 
-    (Just expr, _) -> Just . ConstTerm . Float . eval' $ expr
-    (_, Just expr) -> Just . ConstTerm . Int . eval' $ expr
-    (_, _) -> Nothing
+eval expr = do 
+  expr' <- termToExpression expr 
+  case expr' of 
+    Left expr -> Just . ConstTerm . Int $ eval' expr
+    Right expr -> Just . ConstTerm . Float $ eval' expr
+
 
