@@ -34,6 +34,7 @@ data SearchTree
 
 type Resolvent = [Term]
 
+
 semanticsClause' clause = do
   x         <- semanticsClause clause
   (next, _) <- get
@@ -60,8 +61,8 @@ search' sclauses (Cut : ts) result = do
   return (True, trees)
 
 search' sclauses (CompoundTerm "is" [var, formula] : ts) result = do 
-  let r = evaluate formula
-      t = unification [var :? r] result
+  let r = eval formula
+      t = traceShow  formula $ r >>= (\x -> unification [var :? x] result)
   case t of 
     Nothing -> return (False, [Fail var formula])
     Just result' -> do

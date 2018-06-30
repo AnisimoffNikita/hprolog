@@ -1,63 +1,79 @@
 {-# LANGUAGE RankNTypes #-}
-module Prolog.Math where 
+module Prolog.Math where
 
-import Prolog.Semantics 
+import           Prolog.Semantics
+import qualified Data.Map                      as M
+-- import           Data.Bifunctor
+-- import           Data.Biapplicative
+
+type BinFunc a = a -> a -> a
+type UnFunc a = a -> a
+
+data Expression a
+  = Binary (BinFunc a) (Expression a) (Expression a)
+  | Unary (UnFunc a) (Expression a)
+  | Value a
+
+unaryIntDB :: (Num a) => M.Map String (a -> a)
+unaryIntDB = M.fromList 
+  [("abs", abs)]
+
+unaryFloatDB :: (Floating a) => M.Map String (a -> a)
+unaryFloatDB = M.fromList 
+  [("sin", sin)]
+
+binaryIntDB :: (Num a) => M.Map String (a -> a -> a)
+binaryIntDB = M.fromList 
+  [("+", (+))
+  ,("-", (-))
+  ,("*", (*))]
+
+binaryFloatDB :: (Floating a) => M.Map String (a -> a -> a)
+binaryFloatDB = M.fromList 
+  [("+", (*))
+  ,("-", (-))
+  ,("*", (*))]
+
+termToExpressionInt :: Term -> Maybe (Expression Int)
+termToExpressionInt (CompoundTerm func [x, y]) =
+  Binary 
+    <$> M.lookup func binaryIntDB
+    <*> termToExpressionInt x 
+    <*> termToExpressionInt y
+termToExpressionInt (CompoundTerm func [x]) =
+  Unary 
+    <$> M.lookup func unaryIntDB
+    <*> termToExpressionInt x 
+termToExpressionInt (ConstTerm (Int   x)) = Just (Value x)
+termToExpressionInt (ConstTerm (Float x)) = Nothing
+termToExpressionInt _ = Nothing
 
 
-evaluate :: Term -> Term 
-evaluate (CompoundTerm "-" args) = 
-  case args of 
-    [x@(CompoundTerm _ _), ConstTerm (Int y)] -> 
-      case evaluate x of 
-        (ConstTerm (Int x)) -> ConstTerm (Int $ (-) x y)
-        _ -> error "incompatible types"
-    [x@(CompoundTerm _ _), ConstTerm (Float y)] -> 
-      case evaluate x of 
-        (ConstTerm (Float x)) -> ConstTerm (Float $ (-) x y)
-        _ -> error "incompatible types"
-    [ConstTerm (Int x), y@(CompoundTerm _ _)] -> 
-      case evaluate y of 
-        (ConstTerm (Int y)) -> ConstTerm (Int $ (-) x y)
-        _ -> error "incompatible types"
-    [ConstTerm (Float x), y@(CompoundTerm _ _)] -> 
-      case evaluate y of 
-        (ConstTerm (Float y)) -> ConstTerm (Float $ (-) x y)
-        _ -> error "incompatible types"
-    [ConstTerm (Int x), ConstTerm (Int y)] -> ConstTerm (Int $ (-) x y)
-    [ConstTerm (Float x), ConstTerm (Float y)] -> ConstTerm (Float $ (-) x y)
+termToExpressionFloat :: Term -> Maybe (Expression Float)
+termToExpressionFloat (CompoundTerm func [x, y]) =
+  Binary 
+    <$> M.lookup func binaryFloatDB
+    <*> termToExpressionFloat x 
+    <*> termToExpressionFloat y
+termToExpressionFloat (CompoundTerm func [x]) =
+  Unary 
+    <$> M.lookup func unaryFloatDB
+    <*> termToExpressionFloat x 
+termToExpressionFloat (ConstTerm (Int   x)) = Nothing
+termToExpressionFloat (ConstTerm (Float x)) = Just (Value x)
+termToExpressionFloat _ = Nothing
 
-    [x@(CompoundTerm _ _), y@(CompoundTerm _ _)] -> 
-      case (evaluate x, evaluate y) of 
-        (ConstTerm (Int x), ConstTerm (Int y)) -> ConstTerm (Int $ (-) x y)
-        (ConstTerm (Float x), ConstTerm (Float y)) -> ConstTerm (Float $ (-) x y)
-        _ -> error "incompatible types"
-    _ -> error "incompatible types"
-evaluate (CompoundTerm "*" args) = 
-  case args of 
-    [x@(CompoundTerm _ _), ConstTerm (Int y)] -> 
-      case evaluate x of 
-        (ConstTerm (Int x)) -> ConstTerm (Int $ (*) x y)
-        _ -> error "incompatible types"
-    [x@(CompoundTerm _ _), ConstTerm (Float y)] -> 
-      case evaluate x of 
-        (ConstTerm (Float x)) -> ConstTerm (Float $ (*) x y)
-        _ -> error "incompatible types"
-    [ConstTerm (Int x), y@(CompoundTerm _ _)] -> 
-      case evaluate y of 
-        (ConstTerm (Int y)) -> ConstTerm (Int $ (*) x y)
-        _ -> error "incompatible types"
-    [ConstTerm (Float x), y@(CompoundTerm _ _)] -> 
-      case evaluate y of 
-        (ConstTerm (Float y)) -> ConstTerm (Float $ (*) x y)
-        _ -> error "incompatible types"
-    [ConstTerm (Int x), ConstTerm (Int y)] -> ConstTerm (Int $ (*) x y)
-    [ConstTerm (Float x), ConstTerm (Float y)] -> ConstTerm (Float $ (*) x y)
 
-    [x@(CompoundTerm _ _), y@(CompoundTerm _ _)] -> 
-      case (evaluate x, evaluate y) of 
-        (ConstTerm (Int x), ConstTerm (Int y)) -> ConstTerm (Int $ (*) x y)
-        (ConstTerm (Float x), ConstTerm (Float y)) -> ConstTerm (Float $ (*) x y)
-        _ -> error "incompatible types"
-    _ -> error "incompatible types"
-evaluate _ = error "!"
+eval' :: Expression a -> a
+eval' (Binary f a b) = f (eval' a) (eval' b)
+eval' (Unary f a) = f (eval' a)
+eval' (Value a) = a
+
+
+eval :: Term -> Maybe Term 
+eval expr = 
+  case (termToExpressionFloat expr, termToExpressionInt expr) of 
+    (Just expr, _) -> Just . ConstTerm . Float . eval' $ expr
+    (_, Just expr) -> Just . ConstTerm . Int . eval' $ expr
+    (_, _) -> Nothing
 
