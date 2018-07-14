@@ -1,7 +1,7 @@
 module Main where
 
 import Text.ParserCombinators.Parsec
-import Text.Parsec (ParsecT, State)
+import Text.Parsec (ParsecT)
 import qualified Data.Map as M
 import           Control.Monad.Writer
 import           Control.Monad.State
@@ -21,12 +21,13 @@ s0 = "f(1,1).f(N,X):-dec(N,NN),f(NN,XX),mult(XX,N,X)."
 
 s = "loves(vincent, mia). loves(marcellus, mia). loves(pumpkin, honey_bunny). loves(honey_bunny, pumpkin). jealous(X, Y) :-loves(X, Z),loves(Y, Z)."
 
-f = "f(1,1).f(N,X):- M is N - 1, f(M,Y), X is Y*N."
+f' = "f(1,1):-!.f(N,X):- M is N - 1, f(M,Y), X is Y*N."
+f = "f(1,X,X):-!.f(N,Acc,X):- M is N - 1, NAcc is N * Acc, f(M,NAcc,X)."
 
-Right a = runParser parseProgram () "" f
-Right q = runParser parseTerm'  () "" "f(3,X)"
+Right a = runParser parseProgram () "" f'
+Right q = runParser parseTerm'  () "" "f(6,X)"
 
-Syn.Program cl = a 
+Syn.Program cl = a
 a' = Syn.Program $ cl
 
 
@@ -60,3 +61,4 @@ l = CompoundTerm "-" [u, p]
 
 
 --  dot = printer $ search a' [q]
+

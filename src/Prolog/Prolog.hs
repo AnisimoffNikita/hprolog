@@ -2,7 +2,8 @@
 module Prolog.Prolog where
 
 import           Control.Monad.State
-import Data.Maybe(fromMaybe)
+import           Control.Monad.Writer
+import           Data.Maybe                     ( fromMaybe )
 import qualified Data.Map                      as M
 import           Data.List                      ( intercalate
                                                 , find
@@ -14,96 +15,98 @@ import           Prolog.Math
 
 import           Debug.Trace
 
-data ResultPair
+data PairSubstitution
   = Variable := Term
   deriving (Show, Eq)
-data Target
+
+type Substitution = [PairSubstitution ]
+
+data PairTarget
   = Term :? Term
   deriving (Show, Eq)
-
-type Targets = [Target]
-type Result = [ResultPair]
-
-instance {-# OVERLAPPING #-} Show [ResultPair] where
-  show result = "{" ++ intercalate ",\n" (map show result) ++ "}\n"
+type Target = [PairTarget]
 
 data SearchTree
-  = Ok Result
+  = Ok Term Term Substitution
   | Fail Term Term
-  | Node Result Resolvent [SearchTree]
+  | Node Substitution Resolvent [SearchTree]
   deriving (Show)
 
-type Resolvent = [Term]
+initSearchTree :: Resolvent -> [SearchTree] -> SearchTree
+initSearchTree = Node []
 
+data Resolvent
+  = Resolvent (Maybe Term) [Term] Resolvent
+  | EmptyResolvent
+  deriving (Show)
 
-semanticsClause' clause = do
-  x         <- semanticsClause clause
-  (next, _) <- get
-  put (next, M.empty)
-  return x
+initResolvent question = Resolvent Nothing question EmptyResolvent
 
+type Prolog a = SemanticsStateT (State (Maybe TermInfo)) a
+
+runProlog :: Prolog a -> SemanticsData -> a
+runProlog m semanticsState =
+  evalState (evalSemanticsStateT m semanticsState) Nothing
+
+prolog :: Prolog a -> a
+prolog m = runProlog m initSemanticsState
 
 search :: Syntax.Program -> Syntax.Question -> SearchTree
-search (Syntax.Program clauses) question = Node result resolvent tree
- where
-  result    = []
-  resolvent = evalState (mapM semanticsTerm question) (0, M.empty)
-  trees     = search' clauses resolvent result
-  (_, tree) = evalState (search' clauses resolvent result) (10, M.empty)
+search (Syntax.Program clauses) question = prolog $ do
+  resolvent <- initResolvent <$> mapM semanticsTerm question
+  branches  <- search' clauses resolvent []
+  return $ initSearchTree resolvent branches
 
-search'
-  :: [Syntax.Clause]
-  -> Resolvent
-  -> Result
-  -> SemanticsState (Maybe TermInfo, [SearchTree])
-search' _        []         result = return (Nothing, [Ok result])
-search' sclauses (cut@(Cut f args) : ts) result = do
-  (_, trees) <- search' sclauses ts result
-  return (Just (TermInfo f args), trees)
+search' :: [Syntax.Clause] -> Resolvent -> Substitution -> Prolog [SearchTree]
+search' = undefined
+-- search' _        []         result = return (Nothing, [Ok result])
+-- search' sclauses (cut@(Cut f args) : ts) result = do
+--   (_, trees) <- search' sclauses ts result
+--   return (Just (TermInfo f args), trees)
 
-search' sclauses (CompoundTerm "is" [var, formula] : ts) result = do 
-  let r = eval formula
-      t = traceShow  formula $ r >>= (\x -> unification [var :? x] result)
-  case t of 
-    Nothing -> return (Nothing, [Fail var formula])
-    Just result' -> do
-        let resolvent' = updateResolvent ts result'
-        (cutted, trees) <- search' sclauses resolvent' result'
-        return (cutted, [Node result' resolvent' trees])
+-- search' sclauses (CompoundTerm "is" [var, formula] : ts) result = do 
+--   let r = eval formula
+--       t = traceShow  formula $ r >>= (\x -> unification [var :? x] result)
+--   case t of 
+--     Nothing -> return (Nothing, [Fail var formula])
+--     Just result' -> do
+--         let resolvent' = updateResolvent ts result'
+--         (cutted, trees) <- search' sclauses resolvent' result'
+--         return (cutted, [Node result' resolvent' trees])
 
-search' sclauses (t : ts) result = do
-  clauses <- mapM semanticsClause' sclauses
-  let x = zip (unificateClausesTerm clauses t result) clauses
-      z (Nothing          , Rule p _) = return (Nothing, Fail p t)
-      z (Nothing          , Fact p  ) = return (Nothing, Fail p t)
-      z (Just (b, result'), _       ) = do
-        let resolvent' = updateResolvent (b ++ ts) result'
-        (cutted, trees) <- search' sclauses resolvent' result'
-        return (cutted, Node result' resolvent' trees)
-  flags <- mapM z x
-  let
-    cutInfo = termInfo t 
-    trees = map snd $ takeWhile' check flags
-    check (x, _) = maybe True (/= cutInfo) x
-    needCut = if length flags /= length trees then Just $ termInfo t else Nothing
+-- search' sclauses (t : ts) result = do
+--   clauses <- mapM semanticsClause' sclauses
+--   let x = zip (unificateClausesTerm clauses t result) clauses
+--       z (Nothing          , Rule p _) = return (Nothing, Fail p t)
+--       z (Nothing          , Fact p  ) = return (Nothing, Fail p t)
+--       z (Just (b, result'), _       ) = do
+--         let resolvent' = updateResolvent (b ++ ts) result'
+--         (cutted, trees) <- search' sclauses resolvent' result'
+--         return (cutted, Node result' resolvent' trees)
+--   flags <- mapM z x
+--   let
+--     cutInfo = termInfo t 
+--     trees = map snd $ takeWhile' check flags
+--     check (x, _) = maybe True (/= cutInfo) x
+--     needCut = if length flags /= length trees then Just $ termInfo t else Nothing
 
-  return (needCut, trees)
+--   return (needCut, trees)
 
 
-updateResolvent :: Resolvent -> Result -> Resolvent
-updateResolvent resolvent result = map (updateTarget result) resolvent
+-- updateResolvent :: Resolvent -> Result -> Resolvent
+-- updateResolvent resolvent result = map (updateTarget result) resolvent
 
-updateTarget :: Result -> Term -> Term
+updateTarget :: Substitution -> Term -> Term
 updateTarget result term = term'
  where
   term' = foldl updater term result
   updater term (v' := t') = replaceOccurrence v' t' term
 
-unificateClausesTerm :: [Clause] -> Term -> Result -> [Maybe ([Term], Result)]
+unificateClausesTerm :: [Clause] -> Term -> Substitution -> [Maybe ([Term], Substitution)]
 unificateClausesTerm clauses term result =
   map (\x -> unificateClauseTerm x term result) clauses
 
-unificateClauseTerm :: Clause -> Term -> Result -> Maybe ([Term], Result)
+unificateClauseTerm :: Clause -> Term -> Substitution -> Maybe ([Term], Substitution)
 unificateClauseTerm (Rule t1 b) t2 result = do
   x <- unification [t1 :? t2] result
   return (b, x)
@@ -112,8 +115,7 @@ unificateClauseTerm (Fact t1) t2 result = do
   return ([], x)
 
 
-
-unification :: Targets -> Result -> Maybe Result
+unification :: Target -> Substitution -> Maybe Substitution
 unification []              work = Just work
 unification (t :? p : rest) work = do
   (stack', work') <- unificateTerms t p
@@ -124,17 +126,15 @@ unification (t :? p : rest) work = do
       unification updatedStack (t := p : updatedWork)
     Nothing -> unification (stack' ++ rest) work
 
-updateEquals :: Variable -> Term -> Targets -> Maybe Targets
+updateEquals :: Variable -> Term -> Target -> Maybe Target
 updateEquals t p equals = Just $ map f equals
   where f (t' :? p') = replaceOccurrence t p t' :? replaceOccurrence t p p'
 
-updateResult :: Variable -> Term -> Result -> Maybe Result
+updateResult :: Variable -> Term -> Substitution -> Maybe Substitution
 updateResult t p results = concat <$> mapM f results
  where
   f x@(t' := p') =
-    let
-      -- (VariableTerm t'')  = replaceOccurrence t p (VariableTerm t')
-        p'' = replaceOccurrence t p p'
+    let p'' = replaceOccurrence t p p'
     in  if p' == p'' then Just [x] else unification [VariableTerm t' :? p''] []
 
 replaceOccurrence :: Variable -> Term -> Term -> Term
@@ -144,7 +144,7 @@ replaceOccurrence t q p@(VariableTerm p') = if t == p' then q else p
 replaceOccurrence _ _ p                   = p
 
 
-unificateTerms :: Term -> Term -> Maybe (Targets, Maybe ResultPair)
+unificateTerms :: Term -> Term -> Maybe (Target, Maybe PairSubstitution)
 unificateTerms t p = case (t, p) of
   (VariableTerm Anonymous, _                  ) -> Just ([], Nothing)
   (VariableTerm x        , ConstTerm _        ) -> Just ([], Just (x := p))
@@ -159,8 +159,7 @@ unificateTerms t p = case (t, p) of
     if f1 == f2 && length args1 == length args2
       then Just (zipWith (:?) args1 args2, Nothing)
       else Nothing
-  (Cut _ _, _  ) -> error "cut unification"
-  (_  , Cut _ _) -> error "cut unification"
+  (Cut, _  ) -> error "cut unification"
+  (_  , Cut) -> error "cut unification"
   (t  , p  ) -> if t == p then Just ([], Nothing) else Nothing
-
 
