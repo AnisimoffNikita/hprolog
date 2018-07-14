@@ -3,7 +3,7 @@ module Prolog.Prolog where
 
 import           Control.Monad.State
 import           Control.Monad.Writer
-import           Data.Maybe                     ( fromMaybe )
+import           Data.Maybe                     ( fromMaybe, isJust )
 import qualified Data.Map                      as M
 import           Data.List                      ( intercalate
                                                 , find
@@ -21,13 +21,16 @@ data PairSubstitution
 
 type Substitution = [PairSubstitution ]
 
+
 data PairTarget
   = Term :? Term
   deriving (Show, Eq)
+
 type Target = [PairTarget]
 
+
 data SearchTree
-  = Ok Term Term Substitution
+  = Ok Substitution
   | Fail Term Term
   | Node Substitution Resolvent [SearchTree]
   deriving (Show)
@@ -35,18 +38,31 @@ data SearchTree
 initSearchTree :: Resolvent -> [SearchTree] -> SearchTree
 initSearchTree = Node []
 
+
 data Resolvent
-  = Resolvent (Maybe Term) [Term] Resolvent
+  = Resolvent (Maybe TermInfo) [Term] Resolvent
   | EmptyResolvent
   deriving (Show)
 
+initResolvent :: [Term] -> Resolvent
 initResolvent question = Resolvent Nothing question EmptyResolvent
+
 
 type Prolog a = SemanticsStateT (State (Maybe TermInfo)) a
 
 runProlog :: Prolog a -> SemanticsData -> a
 runProlog m semanticsState =
   evalState (evalSemanticsStateT m semanticsState) Nothing
+
+
+cut :: Maybe TermInfo -> Prolog ()
+cut = lift . put
+
+isCutted :: Prolog (Maybe TermInfo)
+isCutted = lift get
+
+resetCut :: Prolog ()
+resetCut = lift $ put Nothing
 
 prolog :: Prolog a -> a
 prolog m = runProlog m initSemanticsState
@@ -57,12 +73,37 @@ search (Syntax.Program clauses) question = prolog $ do
   branches  <- search' clauses resolvent []
   return $ initSearchTree resolvent branches
 
+
+-- table = [(CompoundTerm "is" [WildCard, WildCard], isHandler)]
+
+-- isHandler :: [Term] -> Resolvent -> Substitution -> Prolog [SearchTree]
+-- isHandler args (Resolvent info (term:terms) resolvent) substitution = do 
+
+
 search' :: [Syntax.Clause] -> Resolvent -> Substitution -> Prolog [SearchTree]
-search' = undefined
--- search' _        []         result = return (Nothing, [Ok result])
--- search' sclauses (cut@(Cut f args) : ts) result = do
---   (_, trees) <- search' sclauses ts result
---   return (Just (TermInfo f args), trees)
+search' _ EmptyResolvent substitution = return [Ok substitution]
+
+search' sclauses (Resolvent func [] resolvent) substitution =
+  search' sclauses resolvent substitution
+
+search' sclauses (Resolvent func (Cut : rest) resolvent) substitution = do
+  trees <- search' sclauses (Resolvent func rest resolvent) substitution
+  cut func
+  return trees
+
+search' sclauses (Resolvent func (term : rest) resolvent) substitution = do
+  cutted <- isCutted 
+  if cutted == func
+    then search' sclauses resolvent substitution
+    else do 
+      resetCut
+      handleTerm sclauses term (Resolvent func rest resolvent) substitution
+
+
+handleTerm = undefined
+
+-- search' sclauses (Resolvent func (term : rest) resolvent) result = do
+--   isCutted <- 
 
 -- search' sclauses (CompoundTerm "is" [var, formula] : ts) result = do 
 --   let r = eval formula
@@ -102,11 +143,13 @@ updateTarget result term = term'
   term' = foldl updater term result
   updater term (v' := t') = replaceOccurrence v' t' term
 
-unificateClausesTerm :: [Clause] -> Term -> Substitution -> [Maybe ([Term], Substitution)]
+unificateClausesTerm
+  :: [Clause] -> Term -> Substitution -> [Maybe ([Term], Substitution)]
 unificateClausesTerm clauses term result =
   map (\x -> unificateClauseTerm x term result) clauses
 
-unificateClauseTerm :: Clause -> Term -> Substitution -> Maybe ([Term], Substitution)
+unificateClauseTerm
+  :: Clause -> Term -> Substitution -> Maybe ([Term], Substitution)
 unificateClauseTerm (Rule t1 b) t2 result = do
   x <- unification [t1 :? t2] result
   return (b, x)

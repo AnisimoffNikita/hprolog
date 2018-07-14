@@ -27,7 +27,9 @@ data Term
   | VariableTerm Variable 
   | CompoundTerm String [Term]
   | Cut
+  | WildCard
   deriving (Eq)
+
 
 instance Show Term where 
   show (ConstTerm x) = show x
@@ -62,7 +64,7 @@ type ID = Int
 data TermInfo 
   = TermInfo String Int
   | NoT
-  deriving (Eq)
+  deriving (Eq,Show)
 
 
 type SemanticsData = (Int, M.Map String Int) 
