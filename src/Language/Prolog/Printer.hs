@@ -1,19 +1,20 @@
-module Prolog.Printer 
-  (dotFile)
+module Language.Prolog.Printer 
+  --(dotFile)
   where 
 
 import Data.List (intercalate)
 
-import Prolog.Prolog
+import Language.Prolog
 
 dotFile :: String -> SearchTree -> IO ()
 dotFile fn tree = writeFile fn $ printer tree
 
-printResult :: Result -> String
+printResult :: Substitution -> String
 printResult = show
 
 printResolvent :: Resolvent -> String 
-printResolvent r = intercalate "\n" $ map show r
+printResolvent EmptyResolvent = ""
+printResolvent (Resolvent _ terms resolvent) = intercalate "\n" $ map show terms ++ [printResolvent resolvent]
 
 printer :: SearchTree -> String 
 printer t = "digraph G{\n" ++ printer' t ++ "\n}"

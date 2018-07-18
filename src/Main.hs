@@ -8,9 +8,9 @@ import           Control.Monad.State
 -- import           Control.Monad.Trans.State
 import           Control.Monad.Trans.Maybe
 
-import qualified Prolog.Syntax as Syn
-import Prolog.Semantics
-import Prolog.Parser
+import qualified Language.Prolog.Syntax as Syn
+import Language.Prolog.Semantics
+import Language.Prolog.Parser
 
 main :: IO ()
 main = print "!"
@@ -24,8 +24,10 @@ s = "loves(vincent, mia). loves(marcellus, mia). loves(pumpkin, honey_bunny). lo
 f' = "f(1,1):-!.f(N,X):- M is N - 1, f(M,Y), X is Y*N."
 f = "f(1,X,X):-!.f(N,Acc,X):- M is N - 1, NAcc is N * Acc, f(M,NAcc,X)."
 
-Right a = runParser parseProgram () "" f'
-Right q = runParser parseTerm'  () "" "f(6,X)"
+m = "higher(X,3):-X<3,!.  higher(X,5):-X<5,!.  higher(X,8):-X<8,!."
+
+Right a = runParser parseProgram () "" m
+Right q = runParser parseTerm'  () "" "higher(4,A)"
 
 Syn.Program cl = a
 a' = Syn.Program $ cl

@@ -1,12 +1,7 @@
-{-# LANGUAGE RankNTypes #-}
-module Prolog.Math where
+module Language.Prolog.Math where
 
-import           Prolog.Semantics
+import           Language.Prolog.Semantics
 import qualified Data.Map                      as M
--- import           Data.Bifunctor
--- import           Data.Biapplicative
-
-
 
 eval :: Term -> Maybe Term 
 eval expr = do 

@@ -1,4 +1,4 @@
-module Prolog.Parser where
+module Language.Prolog.Parser where
 
 import qualified Text.Parsec                   as P
 import qualified Text.Parsec.Char              as P
@@ -15,8 +15,8 @@ import qualified Data.Map                      as M
 import           Control.Monad                  ( void )
 
 
-import           Prolog.Syntax
-import           Prolog.Simplifier
+import           Language.Prolog.Syntax
+import           Language.Prolog.Simplifier
 
 -- NUMBER PARSER
 

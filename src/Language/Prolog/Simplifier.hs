@@ -1,6 +1,6 @@
-module Prolog.Simplifier where 
+module Language.Prolog.Simplifier where 
 
-import Prolog.Syntax
+import Language.Prolog.Syntax
 
 simplify :: Body -> Body
 simplify (Conjunctive [x]) = simplify x

@@ -1,4 +1,4 @@
-module Prolog.Helper 
+module Language.Prolog.Helper 
   (takeWhile')
   where 
 
