@@ -3,6 +3,8 @@ module Language.Prolog.Math where
 import           Language.Prolog.Semantics
 import qualified Data.Map                      as M
 
+import Debug.Trace
+
 eval :: Term -> Maybe Term 
 eval expr = do 
   expr' <- termToValue expr 
@@ -14,13 +16,15 @@ termToValue :: Term -> Maybe (Either Int Float)
 termToValue (ConstTerm (Int a)) = Just (Left a)
 termToValue (ConstTerm (Float a)) = Just (Right a)
 termToValue (CompoundTerm func [x, y]) = do 
-  f <- M.lookup func binaryIntDB
-  g <- M.lookup func binaryFloatDB
   x' <- termToValue x 
   y' <- termToValue y 
   case (x', y') of 
-    (Left x, Left y) -> return . Left $ f x y
-    (Right x, Right y) -> return . Right $ g x y
+    (Left x, Left y) -> do 
+      f <- M.lookup func binaryIntDB
+      return . Left $ f x y
+    (Right x, Right y) -> do 
+      g <- M.lookup func binaryFloatDB
+      return . Right $ g x y
     (_, _) -> Nothing
 
 termToValue (CompoundTerm func [x]) = do 
@@ -33,7 +37,7 @@ termToValue (CompoundTerm func [x]) = do
 
 
 
-unaryIntDB :: (Num a) => M.Map String (a -> a)
+unaryIntDB :: (Integral a) => M.Map String (a -> a)
 unaryIntDB = M.fromList 
   [("abs", abs)]
 
@@ -41,16 +45,18 @@ unaryFloatDB :: (Floating a) => M.Map String (a -> a)
 unaryFloatDB = M.fromList 
   [("sin", sin)]
 
-binaryIntDB :: (Num a) => M.Map String (a -> a -> a)
+binaryIntDB :: (Integral a) => M.Map String (a -> a -> a)
 binaryIntDB = M.fromList 
   [("+", (+))
   ,("-", (-))
+  ,("mod", mod)
   ,("*", (*))]
 
 binaryFloatDB :: (Floating a) => M.Map String (a -> a -> a)
 binaryFloatDB = M.fromList 
   [("+", (*))
   ,("-", (-))
+  ,("/", (/))
   ,("*", (*))]
 
 

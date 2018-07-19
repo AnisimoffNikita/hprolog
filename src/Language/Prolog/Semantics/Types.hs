@@ -62,7 +62,7 @@ data Variable
   deriving (Eq, Ord)
 
 instance Show Variable where
-  show (Variable id name) = name ++ "_" ++ show id
+  show (Variable id name) = name
   show Anonymous = "_"
 
 

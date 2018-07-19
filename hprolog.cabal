@@ -23,13 +23,17 @@ executable hprolog
                      , containers
                      , transformers
                      , bifunctors
-  other-modules:       Prolog.Syntax
-                     , Prolog.Parser
-                     , Prolog.Prolog
-                     , Prolog.Semantics
-                     , Prolog.Printer
-                     , Prolog.Math
-                     , Prolog.Helper
+  other-modules:       Language.Prolog.Syntax
+                     , Language.Prolog.Parser
+                     , Language.Prolog
+                     , Language.Prolog.Semantics
+                     , Language.Prolog.Printer
+                     , Language.Prolog.Math
+                     , Language.Prolog.Helper
+                     , Language.Prolog.Semantics.Converters
+                     , Language.Prolog.Semantics.Types
+                     , Language.Prolog.Algorithm
+                     , Language.Prolog.IO
   default-extensions:  DataKinds
                      , GADTs
                      , KindSignatures

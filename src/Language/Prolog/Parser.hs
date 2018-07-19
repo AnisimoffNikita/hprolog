@@ -232,6 +232,13 @@ parseProgram = do
   return $ Program p
 
 
+parseProgram_ :: Parser (Program, [Term])
+parseProgram_ = do
+  p <- many parseClause'
+  q <- parseBody
+  char '.'
+  return (Program p, q)
+
 -- HELPERS
 
 whitespace :: Parser ()
