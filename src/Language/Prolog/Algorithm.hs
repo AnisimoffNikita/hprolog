@@ -4,6 +4,7 @@ module Language.Prolog.Algorithm
 
 import           Control.Monad.State
 import           Data.List                      ( find
+                                                , elem
                                                 )
 import qualified Data.Map                      as M
 import           Debug.Trace
@@ -94,12 +95,14 @@ search :: Syntax.Program -> Syntax.Question -> [Substitution]
 search (Syntax.Program clauses) question = runProlog
   (do
     id <- getNext
-    let (resolvent', (next, vars)) = runSemanticsState (mapM semanticsTerm question) id
+    let (resolvent', (next, vars')) = runSemanticsState (mapM semanticsTerm question) id
         resolvent = initResolvent resolvent'
+        vars = M.foldlWithKey (\acc vn vid -> Variable vid vn : acc) [] vars'
     setNext next
+
     (_, branches) <- search' clauses resolvent []
     let final = getAnswers $ initSearchTree resolvent branches 
-        result = map (filter (\((Variable _ variable) := _) -> M.member variable vars )) final
+        result = map (filter (\(var := _) -> elem var vars )) final
     return result
   )
   0

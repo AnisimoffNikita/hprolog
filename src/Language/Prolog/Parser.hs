@@ -50,7 +50,7 @@ parseSymbolic = do
 parseQuoted :: Parser Atom
 parseQuoted = do
   char '\''
-  a <- many alphaNum
+  a <- many1 alphaNum <|> many1 (oneOf "!+-*/\\^~:.?#$&[]")
   char '\''
   return $ Symbolic a
 
@@ -61,7 +61,7 @@ parseListAtom :: Parser Atom
 parseListAtom = Symbolic <$> string "[]"
 
 parseAtom' :: Parser Atom
-parseAtom' = parseSymbolic <|> parseQuoted <|> parseSpecial <|> parseListAtom
+parseAtom' = try parseSpecial <|> parseSymbolic <|> parseQuoted <|> parseListAtom
 
 -- VARIABLE PARSER
 
