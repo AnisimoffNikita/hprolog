@@ -40,7 +40,7 @@ initSearchTree = Node []
 
 
 data Resolvent
-  = Resolvent (Maybe TermInfo) [Term] Resolvent
+  = Resolvent (Maybe Term) [Term] Resolvent
   | EmptyResolvent
 
 instance Show Resolvent where 
@@ -54,10 +54,10 @@ instance Show Resolvent where
 initResolvent :: [Term] -> Resolvent
 initResolvent question = Resolvent Nothing question EmptyResolvent
 
-itemResolvent :: TermInfo -> [Term] -> Resolvent
+itemResolvent :: Term -> [Term] -> Resolvent
 itemResolvent term body = Resolvent (Just term) body EmptyResolvent
 
-type Cutting = Maybe TermInfo
+type Cutting = Maybe Term
 
 type Prolog a = State Int a
 
@@ -223,9 +223,9 @@ defaultHandler term sclauses resolvent substitution = do
   let
     cutInfo   = termInfo term
     branches' = map snd $ takeWhile' check branches
-    check (x, _) = x /= Just cutInfo
+    check (x, _) = fmap termInfo x /= Just cutInfo
     needCut = if length branches /= length branches
-      then Just $ termInfo term
+      then Just term
       else Nothing
   return (needCut, branches')
 
@@ -247,18 +247,18 @@ unificateClausesTerm
   :: [Clause]
   -> Term
   -> Substitution
-  -> [Maybe (TermInfo, [Term], Substitution)]
+  -> [Maybe (Term, [Term], Substitution)]
 unificateClausesTerm clauses term result =
   map (\x -> unificateClauseTerm x term result) clauses
 
 unificateClauseTerm
-  :: Clause -> Term -> Substitution -> Maybe (TermInfo, [Term], Substitution)
+  :: Clause -> Term -> Substitution -> Maybe (Term, [Term], Substitution)
 unificateClauseTerm (Rule t1 b) t2 result = do
   x <- unification [t1 :? t2] result
-  return (termInfo t1, b, x)
+  return (t1, b, x)
 unificateClauseTerm (Fact t1) t2 result = do
   x <- unification [t1 :? t2] result
-  return (termInfo t1, [], x)
+  return (t1, [], x)
 
 
 unification :: Target -> Substitution -> Maybe Substitution

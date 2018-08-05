@@ -32,19 +32,21 @@ showTree t@(Node result resolvent trees) = digraph (Str "tree") $  do
   node (show' resolvent) [textLabel (show' resolvent), shape Ellipse]
   forM_ trees $ \t' -> do 
     showTree' t' 
-    show' resolvent --> show' t'
+    (show' resolvent) --> (show' t')
 showTree _ = digraph (Str "tree") $ node' "Empty Tree"
 
 showTree' :: SearchTree -> Dot L.Text
-showTree' t@(Node result resolvent trees) = do
+showTree' t@(Node result r trees) = do
   node (show' t) [textLabel (show' result), shape BoxShape]
-  node (show' resolvent) [textLabel (show' resolvent), shape Ellipse]
-  show' t --> show' resolvent
+  node (show' r) [textLabel (show' r), shape Ellipse]
+  show' t --> show' r
   forM_ trees $ \t' -> do 
     showTree' t' 
-    show' resolvent --> show' t'
+    (show' r) --> (show' t') 
+
 showTree' t@(Ok result) = node (show' t) [textLabel (show' result), shape BoxShape]
-showTree' t@(Fail t1 t2) = node (show' t) [textLabel (pack $ show t1 ++ "/=" ++ show t2), shape BoxShape]
+showTree' t@(Fail t1 t2) = node (show' t) [textLabel (pack "Fail"), shape BoxShape]
+
 
 doDots :: PrintDotRepr dg n => [(FilePath, dg n)] -> IO ()
 doDots cases = forM_ cases createImage
