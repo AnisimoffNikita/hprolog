@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances #-}
 module Language.Prolog.Algorithm 
   where 
 
@@ -22,6 +23,10 @@ data PairSubstitution
 
 type Substitution = [PairSubstitution ]
 
+instance {-# OVERLAPPING #-} Show Substitution where 
+  show x = intercalate "\n" (map show x)
+
+
 data PairTarget
   = Term :? Term
   deriving (Show, Eq)
@@ -30,13 +35,13 @@ type Target = [PairTarget]
 
 
 data SearchTree
-  = Ok Substitution
-  | Fail Term Term
-  | Node Substitution Resolvent [SearchTree]
+  = Ok (Maybe PairTarget) Substitution
+  | Fail (Maybe PairTarget)
+  | Node (Maybe PairTarget) Substitution Resolvent [SearchTree]
   deriving (Show)
 
 initSearchTree :: Resolvent -> [SearchTree] -> SearchTree
-initSearchTree = Node []
+initSearchTree = Node Nothing []
 
 
 data Resolvent
@@ -95,9 +100,9 @@ search_ (Syntax.Program clauses) question = runProlog
 
 
 getAnswers :: SearchTree -> [Substitution]
-getAnswers (Node _ _ branches) = concatMap getAnswers branches
-getAnswers (Fail _ _) = []
-getAnswers (Ok substitution) = [substitution]
+getAnswers (Node _ _ _ branches) = concatMap getAnswers branches
+getAnswers (Fail _) = []
+getAnswers (Ok _ substitution) = [substitution]
 
 search :: Syntax.Program -> Syntax.Question -> [Substitution]
 search (Syntax.Program clauses) question = runProlog
@@ -120,7 +125,7 @@ search'
   -> Resolvent
   -> Substitution
   -> Prolog (Cutting, [SearchTree])
-search' _ EmptyResolvent substitution = return (Nothing, [Ok substitution])
+search' _ EmptyResolvent substitution = return (Nothing, [Ok Nothing substitution])
 
 search' sclauses (Resolvent func [] resolvent) substitution =
   search' sclauses resolvent substitution
@@ -132,7 +137,7 @@ search' sclauses (Resolvent func (Cut : rest) resolvent) substitution = do
 search' sclauses (Resolvent func (p@(CompoundTerm "<" [ConstTerm (Int x), ConstTerm (Int y)]) : rest) resolvent) substitution
   = if x < y
     then search' sclauses (Resolvent func rest resolvent) substitution
-    else return (Nothing, [Fail p p])
+    else return (Nothing, [Fail (Just $ p :? p)])
 
 
 search' sclauses (Resolvent func (term : rest) resolvent) substitution = do
@@ -168,11 +173,11 @@ explicitUnification
 explicitUnification (CompoundTerm "=" [x, y]) sclauses resolvent substitution = do 
   let t = unification [x :? y] substitution
   case t of 
-    Nothing -> return (Nothing, [Fail x y])
+    Nothing -> return (Nothing, [Fail (Just $ x :? y)])
     Just result' -> do
         let resolvent' = updateResolvent resolvent result'
         (cutted, trees) <- search' sclauses resolvent' result'
-        return (cutted, [Node result' resolvent' trees])
+        return (cutted, [Node (Just $ x :? y) result' resolvent' trees])
 
 isHandler
   :: Term
@@ -184,11 +189,11 @@ isHandler (CompoundTerm "is" [var, formula]) sclauses resolvent substitution = d
   let r = eval formula
       t = r >>= (\x -> unification [var :? x] substitution)
   case t of 
-    Nothing -> return (Nothing, [Fail var formula])
+    Nothing -> return (Nothing, [Fail (Just $ var :? formula)])
     Just result' -> do
         let resolvent' = updateResolvent resolvent result'
         (cutted, trees) <- search' sclauses resolvent' result'
-        return (cutted, [Node result' resolvent' trees])
+        return (cutted, [Node Nothing result' resolvent' trees])
 
 boolHandler
   :: Term
@@ -212,13 +217,13 @@ defaultHandler term sclauses resolvent substitution = do
   clauses <- mapM semanticsClause_ sclauses
   let unfications =
         zip (unificateClausesTerm clauses term substitution) clauses
-      f (Nothing, Rule p _) = return (Nothing, Fail p term)
-      f (Nothing, Fact p) = return (Nothing, Fail p term)
+      f (Nothing, Rule p _) = return (Nothing, Fail (Just $ p :? term))
+      f (Nothing, Fact p) = return (Nothing, Fail (Just $ p :? term))
       f (Just (func', terms', substitution'), _) = do
         let resolvent'  = Resolvent (Just func') terms' resolvent
             resolvent'' = updateResolvent resolvent' substitution'
         (cutted, branches) <- search' sclauses resolvent'' substitution'
-        return (cutted, Node substitution' resolvent'' branches)
+        return (cutted, Node (Just $ term :? func') substitution' resolvent'' branches)
   branches <- mapM f unfications
   let
     cutInfo   = termInfo term
