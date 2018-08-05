@@ -5,6 +5,7 @@ module Language.Prolog.Algorithm
 import           Control.Monad.State
 import           Data.List                      ( find
                                                 , elem
+                                                , intercalate
                                                 )
 import qualified Data.Map                      as M
 import           Debug.Trace
@@ -41,7 +42,14 @@ initSearchTree = Node []
 data Resolvent
   = Resolvent (Maybe TermInfo) [Term] Resolvent
   | EmptyResolvent
-  deriving (Show)
+
+instance Show Resolvent where 
+  show (Resolvent _ terms rest) = intercalate "\n" (map show full)
+    where 
+      full = terms ++ getTerms rest
+      getTerms (Resolvent _ terms rest) = terms ++ getTerms rest 
+      getTerms EmptyResolvent = []
+  show EmptyResolvent = ""
 
 initResolvent :: [Term] -> Resolvent
 initResolvent question = Resolvent Nothing question EmptyResolvent
@@ -148,8 +156,8 @@ traceHandler
   -> Resolvent
   -> Substitution
   -> Prolog (Cutting, [SearchTree])
-traceHandler (CompoundTerm "trace" [x]) sclauses resolvent substitution =
-  traceShow x search' sclauses resolvent substitution 
+traceHandler (CompoundTerm "trace" [x]) =
+  traceShow x search' 
 
 explicitUnification
   :: Term

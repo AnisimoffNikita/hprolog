@@ -1,5 +1,4 @@
-module Language.Prolog.Printer 
-  --(dotFile)
+module Language.Prolog.Printer.Dot
   where 
 
 import Data.List (intercalate)
