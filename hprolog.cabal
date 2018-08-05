@@ -23,6 +23,8 @@ executable hprolog
                      , containers
                      , transformers
                      , bifunctors
+                     , parallel
+                     , deepseq
   other-modules:       Language.Prolog.Syntax
                      , Language.Prolog.Parser
                      , Language.Prolog
@@ -30,6 +32,8 @@ executable hprolog
                      , Language.Prolog.Printer
                      , Language.Prolog.Math
                      , Language.Prolog.Helper
+                     , Language.Prolog.Bool
+                     , Language.Prolog.Simplifier
                      , Language.Prolog.Semantics.Converters
                      , Language.Prolog.Semantics.Types
                      , Language.Prolog.Algorithm

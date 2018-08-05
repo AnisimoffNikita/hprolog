@@ -15,6 +15,7 @@ evalBool (CompoundTerm func [x, y]) = do
 evalBool _ = Nothing 
 
 
+
 binaryIntDB :: (Num a, Eq a, Ord a) => M.Map String (a -> a -> Bool)
 binaryIntDB = M.fromList 
   [(">", (>))

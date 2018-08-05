@@ -228,7 +228,7 @@ updateResolvent (Resolvent func terms resolvent) result = Resolvent
   func
   (map (updateTarget result) terms)
   (updateResolvent resolvent result)
-
+  
 updateTarget :: Substitution -> Term -> Term
 updateTarget result term = term'
  where
@@ -265,7 +265,7 @@ unification (t :? p : rest) work = do
     Nothing -> unification (stack' ++ rest) work
 
 updateEquals :: Variable -> Term -> Target -> Maybe Target
-updateEquals t p equals = Just $ map f equals
+updateEquals t p equals = Just $ map f equals 
   where f (t' :? p') = replaceOccurrence t p t' :? replaceOccurrence t p p'
 
 updateResult :: Variable -> Term -> Substitution -> Maybe Substitution
