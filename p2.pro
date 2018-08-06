@@ -1,3 +1,5 @@
+
+
 perm([], []).
 perm(Source, [Element|Tail]) :- member_list_exclude(Element, Source, SourceExcluded), 
              perm(SourceExcluded, Tail).

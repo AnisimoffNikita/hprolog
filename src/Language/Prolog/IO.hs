@@ -1,9 +1,11 @@
 module Language.Prolog.IO 
-where 
+  where 
 
 import qualified Language.Prolog.Syntax        as Syntax
 import           Language.Prolog.Parser
+import           Language.Prolog.Algorithm (SearchTree)
 import           Text.ParserCombinators.Parsec (runParser, char)
+import           Language.Prolog.Printer.Graphviz
 
 import           Debug.Trace
 import           System.IO
@@ -40,3 +42,11 @@ resultRead filename = do
   case x of 
     Left err -> putStrLn err 
     _ -> putStrLn "ok"
+
+
+createTree :: SearchTree -> FilePath -> IO ()
+createTree tree image = do 
+  let dot = showTree tree 
+  createImage (image, dot)
+  return ()
+
