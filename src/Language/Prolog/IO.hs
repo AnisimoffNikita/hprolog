@@ -23,3 +23,20 @@ getQuestion question = do
   case parsed of 
     (Right question) -> return . Right $ question 
     (Left err) -> return . Left $ show err
+
+
+readProgram :: FilePath -> IO (Either String Syntax.Program)
+readProgram filename = do
+  text <- readFile filename
+  let parsed = runParser parseProgram_ () "" text
+  case parsed of 
+    (Right clauses) -> return $ Right clauses
+    (Left err) -> return . Left $ show err
+
+
+resultRead :: FilePath -> IO ()
+resultRead filename = do 
+  x <- readProgram filename
+  case x of 
+    Left err -> putStrLn err 
+    _ -> putStrLn "ok"

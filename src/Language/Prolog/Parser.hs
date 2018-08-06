@@ -54,14 +54,14 @@ parseQuoted = do
   char '\''
   return $ Symbolic a
 
-parseSpecial :: Parser Atom
-parseSpecial = Symbolic <$> many1 (oneOf "+-*/\\^~:.?#$&")
+-- parseSpecial :: Parser Atom
+-- parseSpecial = Symbolic <$> many1 (oneOf "+-*/\\^~:.?#$&")
 
 parseListAtom :: Parser Atom
 parseListAtom = Symbolic <$> string "[]"
 
 parseAtom' :: Parser Atom
-parseAtom' = try parseSpecial <|> parseSymbolic <|> parseQuoted <|> parseListAtom
+parseAtom' = parseSymbolic <|> parseQuoted <|> parseListAtom
 
 -- VARIABLE PARSER
 
@@ -228,16 +228,18 @@ makeOperator op assoc name = op
 
 parseProgram :: Parser Program
 parseProgram = do
-  p <- many parseClause'
-  return $ Program p
+  p <- lexeme $ many parseClause'
+  return $ Program p []
 
 
-parseProgram_ :: Parser (Program, [Term])
+parseProgram_ :: Parser Program
 parseProgram_ = do
-  p <- many parseClause'
-  q <- parseBody
-  char '.'
-  return (Program p, q)
+  lexeme $ string "predicates"
+  p <- lexeme $ many (try parseClause')
+  lexeme $ string "goal"
+  q <- lexeme $ many1 parseTerm'
+  lexeme $ char '.'
+  return $ Program p q
 
 -- HELPERS
 

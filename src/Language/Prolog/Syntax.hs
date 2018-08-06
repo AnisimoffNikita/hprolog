@@ -4,7 +4,7 @@ module Language.Prolog.Syntax where
 import Data.List
 
 data Program
-  = Program [Clause]
+  = Program [Clause] Question
   deriving (Show)
 
 data Clause

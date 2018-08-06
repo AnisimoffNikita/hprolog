@@ -14,9 +14,7 @@ import Language.Prolog.IO
 import Language.Prolog
 
 main :: IO ()
-main = do 
-  Right a <- readClauses "p3.pro"
-  Right b <- getQuestion "perfect_number(X)"
-  let x = search a b 
-  print x
+main = undefined
+
+
 

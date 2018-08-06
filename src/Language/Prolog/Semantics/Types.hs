@@ -3,8 +3,8 @@ module Language.Prolog.Semantics.Types
 
 import           Data.List                      ( intercalate )
 
-newtype Program
-  = Program [Clause]
+data Program
+  = Program [Clause] Question
   deriving (Show)
 
 data Clause
@@ -22,19 +22,9 @@ data Term
   | VariableTerm Variable
   | CompoundTerm String [Term]
   | Cut
-  | WildCard
-  deriving (Ord)
+  deriving (Eq, Ord)
 
-instance Eq Term where
-  WildCard            == _                   = True
-  _                   == WildCard            = True
-  (ConstTerm    x   ) == (ConstTerm    y   ) = x == y
-  (VariableTerm x   ) == (VariableTerm y   ) = x == y
-  (CompoundTerm x tx) == (CompoundTerm y ty) = x == y && tx == ty
-  Cut                 == Cut                 = True
-  _                   == _                   = False
-
-
+type Question = [Term]
 
 instance Show Term where
   show (ConstTerm x) = show x
@@ -46,7 +36,6 @@ instance Show Term where
       showList h t = show h ++ "|" ++ show t
   show (CompoundTerm f terms) = f ++ "(" ++ intercalate ", " (map show terms)  ++ ")"
   show Cut = "!"
-  show WildCard = "_"
 
 
 data Const
