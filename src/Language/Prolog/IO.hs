@@ -1,5 +1,5 @@
-module Language.Prolog.IO 
-  where 
+module Language.Prolog.IO
+  where
 
 import qualified Language.Prolog.Syntax        as Syntax
 import           Language.Prolog.Parser
@@ -14,39 +14,35 @@ import           System.IO
 readClauses :: FilePath -> IO (Either String Syntax.Program)
 readClauses filename = do
   text <- readFile filename
-  let parsed = runParser parseProgram () "" text
-  case parsed of 
-    (Right clauses) -> return . Right $ clauses 
-    (Left err) -> return . Left $ show err
-  
+  let parsed = runParser parseOnlyClauses () "" text
+  case parsed of
+    (Right clauses) -> return $ Right clauses
+    (Left err) -> return $ Left $ show err
+
 getQuestion :: String -> IO (Either String [Syntax.Term])
 getQuestion question = do
   let parsed = runParser parseBody () "" question
-  case parsed of 
-    (Right question) -> return . Right $ question 
-    (Left err) -> return . Left $ show err
-
+  case parsed of
+    (Right question) -> return $ Right question
+    (Left err) -> return $ Left $ show err
 
 readProgram :: FilePath -> IO (Either String Syntax.Program)
 readProgram filename = do
   text <- readFile filename
-  let parsed = runParser parseProgram_ () "" text
-  case parsed of 
+  let parsed = runParser parseProgram () "" text
+  case parsed of
     (Right clauses) -> return $ Right clauses
-    (Left err) -> return . Left $ show err
-
+    (Left err) -> return $ Left $ show err
 
 resultRead :: FilePath -> IO ()
-resultRead filename = do 
+resultRead filename = do
   x <- readProgram filename
-  case x of 
-    Left err -> putStrLn err 
+  case x of
+    Left err -> putStrLn err
     _ -> putStrLn "ok"
 
-
 createTree :: SearchTree -> FilePath -> IO ()
-createTree tree image = do 
-  let dot = showTree tree 
+createTree tree image = do
+  let dot = showTree tree
   createImage (image, dot)
   return ()
-

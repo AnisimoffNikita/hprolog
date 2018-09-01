@@ -23,7 +23,6 @@ executable hprolog
         Language.Prolog.Math
         Language.Prolog.Helper
         Language.Prolog.Bool
-        Language.Prolog.Simplifier
         Language.Prolog.Semantics.Converters
         Language.Prolog.Semantics.Types
         Language.Prolog.Algorithm

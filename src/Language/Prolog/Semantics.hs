@@ -1,8 +1,6 @@
-module Language.Prolog.Semantics 
-  ( module Types
-  , module Converters
+module Language.Prolog.Semantics
+  ( module X
   )where
 
-
-import Language.Prolog.Semantics.Types as Types
-import Language.Prolog.Semantics.Converters as Converters
+import Language.Prolog.Semantics.Types as X
+import Language.Prolog.Semantics.Converters as X

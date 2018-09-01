@@ -1,25 +1,17 @@
 module Language.Prolog.Parser where
 
-import qualified Text.Parsec                   as P
-import qualified Text.Parsec.Char              as P
-import           Text.Parsec.Expr               ( Operator(..)
-                                                , Assoc(..)
-                                                , buildExpressionParser
-                                                )
-import           Text.Parsec.Token              ( TokenParser(..)
-                                                , makeTokenParser
-                                                )
-import           Text.ParserCombinators.Parsec
-import           Text.Parsec                    ( Parsec )
-import qualified Data.Map                      as M
-import           Control.Monad                  ( void )
-
-
+import           Control.Monad (void)
+import qualified Data.Map as M
 import           Language.Prolog.Syntax
-import           Language.Prolog.Simplifier
+import qualified Text.Parsec as P
+import qualified Text.Parsec.Char as P
+import           Text.Parsec.Expr
+  (Operator(..), Assoc(..), buildExpressionParser)
+import           Text.Parsec.Token (TokenParser(..), makeTokenParser)
+import           Text.ParserCombinators.Parsec
+import           Text.Parsec (Parsec)
 
 -- NUMBER PARSER
-
 
 parseInt :: Parser Number
 parseInt = do
@@ -54,9 +46,6 @@ parseQuoted = do
   char '\''
   return $ Symbolic a
 
--- parseSpecial :: Parser Atom
--- parseSpecial = Symbolic <$> many1 (oneOf "+-*/\\^~:.?#$&")
-
 parseListAtom :: Parser Atom
 parseListAtom = Symbolic <$> string "[]"
 
@@ -77,7 +66,6 @@ parseAnonymous = char '_' >> return Anonymous
 
 parseVariable' :: Parser Variable
 parseVariable' = parseNamed <|> parseAnonymous
-
 
 -- TERM PARSER
 
@@ -109,12 +97,9 @@ parseString = lexeme $ toTerm <$> between (char '"') (char '"') (many alphaNum)
   toTerm (x : xs) =
     CompoundTerm (Symbolic "!") [AtomTerm $ Symbolic [x], toTerm xs]
 
-
-
 parseList :: Parser Term
 parseList = lexeme $ do
   lexeme $ char '['
-
   a <- parseArgs
   b <- option (AtomTerm $ Symbolic "[]") $ (lexeme $ char '|') >> parseTerm'
   char ']'
@@ -163,11 +148,8 @@ parseClause' = lexeme $ do
 
 -- BODY PARSE
 
-
 parseBody :: Parser [Term]
 parseBody = lexeme $ sepBy parseTarget (lexeme $ char ',')
-
-
 
 parseTerm :: Parser Term
 parseTerm = lexeme parseTerm'
@@ -205,35 +187,14 @@ makeOperator op assoc name = op
   assoc
   where makeFunc name a b = CompoundTerm (Symbolic name) [a, b]
 
--- parseBody :: Parser Body 
--- parseBody = parseDisjunctive <|> parseParentheses
-
--- parseParentheses :: Parser Body 
--- parseParentheses = lexeme $ between (lexeme $ char '(') (char ')') parseBody
-
--- parseDisjunctive :: Parser Body 
--- parseDisjunctive = lexeme $ do 
---   a <- sepBy1 (parseConjuctive <|> parseParentheses) (lexeme $ char ';') 
---   return $ Disjunctive a
-
--- parseConjuctive :: Parser Body 
--- parseConjuctive = lexeme $ do 
---   a <- sepBy1 (parseTerm <|> parseParentheses) (lexeme $ char ',')
---   return $ Conjunctive a
-
--- parseTerm :: Parser Body 
--- parseTerm = Element <$> parseTerm'
-
 -- PARSER PROGRAM
-
-parseProgram :: Parser Program
-parseProgram = do
+parseOnlyClauses :: Parser Program
+parseOnlyClauses = do
   p <- lexeme $ many parseClause'
   return $ Program p []
 
-
-parseProgram_ :: Parser Program
-parseProgram_ = do
+parseProgram :: Parser Program
+parseProgram = do
   lexeme $ string "predicates"
   p <- lexeme $ many (try parseClause')
   lexeme $ string "goal"
@@ -242,7 +203,6 @@ parseProgram_ = do
   return $ Program p q
 
 -- HELPERS
-
 whitespace :: Parser ()
 whitespace = void $ many $ oneOf " \n\t"
 

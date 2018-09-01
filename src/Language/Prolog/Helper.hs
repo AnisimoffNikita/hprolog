@@ -1,7 +1,6 @@
-module Language.Prolog.Helper 
+module Language.Prolog.Helper
   (takeWhile')
-  where 
-
+  where
 
 takeWhile' :: (a -> Bool) -> [a] -> [a]
 takeWhile' f []       = []

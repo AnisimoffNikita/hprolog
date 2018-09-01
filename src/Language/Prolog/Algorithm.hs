@@ -3,15 +3,11 @@ module Language.Prolog.Algorithm where
 
 
 import           Control.Monad.State
-import           Data.List                      ( find
-                                                , elem
-                                                , intercalate
-                                                )
-import qualified Data.Map                      as M
+import           Data.List (find, elem, intercalate)
+import qualified Data.Map as M
 import           Debug.Trace
-
 import           Language.Prolog.Helper
-import qualified Language.Prolog.Syntax        as Syntax
+import qualified Language.Prolog.Syntax as Syntax
 import           Language.Prolog.Semantics
 import           Language.Prolog.Math
 import           Language.Prolog.Bool
@@ -59,32 +55,32 @@ initResolvent question = Resolvent Nothing question EmptyResolvent
 
 type Cutting = Maybe Term
 
-type Prolog a = State Int a
+type PrologM a = State Int a
 
-runProlog :: Prolog a -> Int -> a
-runProlog = evalState
+runPrologM :: PrologM a -> Int -> a
+runPrologM = evalState
 
-getNext :: Prolog Int
+getNext :: PrologM Int
 getNext = get
 
-setNext :: Int -> Prolog ()
+setNext :: Int -> PrologM ()
 setNext = put
 
-semantics :: SemanticsState a -> Prolog a
+semantics :: SemanticsState a -> PrologM a
 semantics m = do
   id <- getNext
   let (x, (next, _)) = runSemanticsState m id
   setNext next
   return x
 
-semanticsClause_ :: Syntax.Clause -> Prolog Clause
+semanticsClause_ :: Syntax.Clause -> PrologM Clause
 semanticsClause_ sclause = semantics $ semanticsClause sclause
 
-semanticsTerm_ :: Syntax.Term -> Prolog Term
+semanticsTerm_ :: Syntax.Term -> PrologM Term
 semanticsTerm_ sterm = semantics $ semanticsTerm sterm
 
 search_ :: Syntax.Program -> SearchTree
-search_ (Syntax.Program clauses question) = runProlog
+search_ (Syntax.Program clauses question) = runPrologM
   (do
     resolvent     <- initResolvent <$> mapM semanticsTerm_ question
     (_, branches) <- search' clauses resolvent []
@@ -99,7 +95,7 @@ getAnswers (Fail _             ) = []
 getAnswers (Ok _ substitution  ) = [substitution]
 
 search :: Syntax.Program -> [Substitution]
-search (Syntax.Program clauses question) = runProlog
+search (Syntax.Program clauses question) = runPrologM
   (do
     id <- getNext
     let (resolvent', (next, vars')) =
@@ -119,7 +115,7 @@ search'
   :: [Syntax.Clause]
   -> Resolvent
   -> Substitution
-  -> Prolog (Cutting, [SearchTree])
+  -> PrologM (Cutting, [SearchTree])
 search' _ EmptyResolvent substitution =
   return (Nothing, [Ok Nothing substitution])
 
@@ -158,7 +154,7 @@ traceHandler
   -> [Syntax.Clause]
   -> Resolvent
   -> Substitution
-  -> Prolog (Cutting, [SearchTree])
+  -> PrologM (Cutting, [SearchTree])
 traceHandler (CompoundTerm "trace" [x]) = traceShow x search'
 
 explicitUnification
@@ -166,7 +162,7 @@ explicitUnification
   -> [Syntax.Clause]
   -> Resolvent
   -> Substitution
-  -> Prolog (Cutting, [SearchTree])
+  -> PrologM (Cutting, [SearchTree])
 explicitUnification (CompoundTerm "=" [x, y]) sclauses resolvent substitution =
   do
     let t = unification [x :? y] substitution
@@ -182,7 +178,7 @@ isHandler
   -> [Syntax.Clause]
   -> Resolvent
   -> Substitution
-  -> Prolog (Cutting, [SearchTree])
+  -> PrologM (Cutting, [SearchTree])
 isHandler (CompoundTerm "is" [var, formula]) sclauses resolvent substitution =
   do
     let r = eval formula
@@ -199,7 +195,7 @@ boolHandler
   -> [Syntax.Clause]
   -> Resolvent
   -> Substitution
-  -> Prolog (Cutting, [SearchTree])
+  -> PrologM (Cutting, [SearchTree])
 boolHandler bool sclauses resolvent substitution = do
   let r = evalBool bool
   case r of
@@ -211,7 +207,7 @@ defaultHandler
   -> [Syntax.Clause]
   -> Resolvent
   -> Substitution
-  -> Prolog (Cutting, [SearchTree])
+  -> PrologM (Cutting, [SearchTree])
 defaultHandler term sclauses resolvent substitution = do
   clauses <- mapM semanticsClause_ sclauses
   let

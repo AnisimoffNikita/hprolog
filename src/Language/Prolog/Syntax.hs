@@ -20,8 +20,6 @@ data Term
   | Cut
   deriving (Show, Eq)
 
-
-
 data Variable
   = Named String
   | Anonymous
@@ -34,13 +32,6 @@ data Atom
 data Number
   = Int Int
   | Float Float
-  deriving (Show, Eq)
-
-
-data Body 
-  = Disjunctive [Body]
-  | Conjunctive [Body]
-  | Element Term
   deriving (Show, Eq)
 
 type Question = [Term]

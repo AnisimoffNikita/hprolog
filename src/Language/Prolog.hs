@@ -1,8 +1,76 @@
-module Language.Prolog 
-  ( module Algorithm
-  , module PrologIO
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# OPTIONS_GHC -fno-cse #-}
+module Language.Prolog
+  ( module X
+  , run
   ) where
 
+import Language.Prolog.Algorithm as X
+import Language.Prolog.IO as X
+import System.Console.CmdArgs
 
-import Language.Prolog.Algorithm as Algorithm
-import Language.Prolog.IO as PrologIO
+data PrologMode
+  = Tree | Result | SteppedResult
+  deriving (Show, Data, Typeable)
+
+data Prolog = Prolog
+  { file :: FilePath
+  , mode :: PrologMode
+  , output :: FilePath
+  } deriving (Show, Data, Typeable)
+
+config :: Prolog
+config = Prolog
+  { file = def &= args &= typFile
+  , mode = Result &= typ "MODE" &= help "result format"
+  , output = "tmp" &= typFile &= help "tree image path"}
+
+run :: IO ()
+run = do
+  Prolog{..} <- cmdArgs config
+  if file == ""
+    then putStrLn "file not specified"
+    else
+      case mode of
+        Result -> printResult file
+        SteppedResult -> printSteppedResult file
+        Tree -> printTree file output
+
+printResult :: FilePath -> IO()
+printResult filepath = do
+  x <- readProgram filepath
+  case x of
+    Left err -> putStrLn err
+    Right program -> do
+      result <- return $ search program
+      print result
+
+printSteppedResult :: FilePath -> IO ()
+printSteppedResult filepath = do
+  x <- readProgram filepath
+  case x of
+    Left err -> putStrLn err
+    Right program -> do
+      let result = search program
+      printNextResult result
+  where
+    printNextResult [] = putStrLn "done"
+    printNextResult r@(x:xs) = do
+      print x
+      putStrLn "press n for the next result"
+      putStrLn "press s to stop"
+      c <- getChar
+      case c of
+        'n' -> printNextResult xs
+        's' -> putStrLn "done"
+        _ -> printNextResult r
+
+printTree :: FilePath -> FilePath -> IO()
+printTree filepath image = do
+  x <- readProgram filepath
+  case x of
+    Left err -> putStrLn err
+    Right program -> do
+      result <- return $ search_ program
+      createTree result image
+      return ()
