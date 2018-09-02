@@ -28,10 +28,8 @@ runSemanticsState m s = runState m (initSemanticsState s)
 execSemanticsState :: SemanticsState a -> SemanticsData -> SemanticsData
 execSemanticsState = execState
 
-
 initSemanticsState :: Int -> SemanticsData
 initSemanticsState id = (id, M.empty)
-
 
 semanticsClause :: S.Clause -> SemanticsState Clause
 semanticsClause sclause = case sclause of
@@ -48,14 +46,12 @@ semanticsTerm (S.VariableTerm a  ) = semanticsVariable a
 semanticsTerm (S.CompoundTerm a t) = semanticsCompoundTerm a t
 semanticsTerm S.Cut                = return Cut
 
-
 semanticsAtom :: S.Atom -> SemanticsState Term
 semanticsAtom (S.Symbolic s) = return $ ConstTerm (Atom s)
 
 semanticsNumber :: S.Number -> SemanticsState Term
 semanticsNumber (S.Int   s) = return $ ConstTerm (Int s)
 semanticsNumber (S.Float s) = return $ ConstTerm (Float s)
-
 
 semanticsVariable :: S.Variable -> SemanticsState Term
 semanticsVariable (S.Named x) = do
@@ -70,7 +66,6 @@ semanticsVariable (S.Named x) = do
       put (next', vars')
       return $ VariableTerm (Variable id' x)
 semanticsVariable S.Anonymous = return $ VariableTerm Anonymous
-
 
 semanticsCompoundTerm :: S.Atom -> [S.Term] -> SemanticsState Term
 semanticsCompoundTerm (S.Symbolic f) terms =

@@ -12,31 +12,29 @@ import           Language.Prolog.Semantics
 import           Language.Prolog.Math
 import           Language.Prolog.Bool
 
-data PairSubstitution
+data OneSubstitution
   = Variable := Term
   deriving (Show, Eq)
 
-type Substitution = [PairSubstitution ]
+type Substitution = [OneSubstitution]
 
 instance {-# OVERLAPPING #-} Show Substitution where
   show x = intercalate "\n" (map show x)
 
-data PairTarget
+data OneTarget
   = Term :? Term
   deriving (Show, Eq)
 
-type Target = [PairTarget]
-
+type Target = [OneTarget]
 
 data SearchTree
-  = Ok (Maybe PairTarget) Substitution
-  | Fail (Maybe PairTarget)
-  | Node (Maybe PairTarget) Substitution Resolvent [SearchTree]
+  = Ok (Maybe OneTarget) Substitution
+  | Fail (Maybe OneTarget)
+  | Node (Maybe OneTarget) Substitution Resolvent [SearchTree]
   deriving (Show)
 
 initSearchTree :: Resolvent -> [SearchTree] -> SearchTree
 initSearchTree = Node Nothing []
-
 
 data Resolvent
   = Resolvent (Maybe Term) [Term] Resolvent
@@ -55,22 +53,22 @@ initResolvent question = Resolvent Nothing question EmptyResolvent
 
 type Cutting = Maybe Term
 
-type PrologM a = State Int a
+type PrologM a = State VarID a
 
-runPrologM :: PrologM a -> Int -> a
+runPrologM :: PrologM a -> VarID -> a
 runPrologM = evalState
 
-getNext :: PrologM Int
-getNext = get
+getNextId :: PrologM VarID
+getNextId = get
 
-setNext :: Int -> PrologM ()
-setNext = put
+setNextId :: VarID -> PrologM ()
+setNextId = put
 
 semantics :: SemanticsState a -> PrologM a
 semantics m = do
-  id <- getNext
+  id <- getNextId
   let (x, (next, _)) = runSemanticsState m id
-  setNext next
+  setNextId next
   return x
 
 semanticsClause_ :: Syntax.Clause -> PrologM Clause
@@ -88,7 +86,6 @@ search_ (Syntax.Program clauses question) = runPrologM
   )
   0
 
-
 getAnswers :: SearchTree -> [Substitution]
 getAnswers (Node _ _ _ branches) = concatMap getAnswers branches
 getAnswers (Fail _             ) = []
@@ -97,12 +94,12 @@ getAnswers (Ok _ substitution  ) = [substitution]
 search :: Syntax.Program -> [Substitution]
 search (Syntax.Program clauses question) = runPrologM
   (do
-    id <- getNext
+    id <- getNextId
     let (resolvent', (next, vars')) =
           runSemanticsState (mapM semanticsTerm question) id
         resolvent = initResolvent resolvent'
         vars = M.foldlWithKey (\acc vn vid -> Variable vid vn : acc) [] vars'
-    setNext next
+    setNextId next
 
     (_, branches) <- search' clauses resolvent []
     let final  = getAnswers $ initSearchTree resolvent branches
@@ -118,14 +115,11 @@ search'
   -> PrologM (Cutting, [SearchTree])
 search' _ EmptyResolvent substitution =
   return (Nothing, [Ok Nothing substitution])
-
 search' sclauses (Resolvent func [] resolvent) substitution =
   search' sclauses resolvent substitution
-
 search' sclauses (Resolvent func (Cut : rest) resolvent) substitution = do
   (_, branches) <- search' sclauses (Resolvent func rest resolvent) substitution
   return (func, branches)
-
 search' sclauses (Resolvent func (term : rest) resolvent) substitution = do
   let resolvent' = (Resolvent func rest resolvent)
   case term of
@@ -286,7 +280,7 @@ replaceOccurrence t q p@(VariableTerm p') = if t == p' then q else p
 replaceOccurrence _ _ p                   = p
 
 
-unificateTerms :: Term -> Term -> Maybe (Target, Maybe PairSubstitution)
+unificateTerms :: Term -> Term -> Maybe (Target, Maybe OneSubstitution)
 unificateTerms t p = case (t, p) of
   (VariableTerm Anonymous, _                  ) -> Just ([], Nothing)
   (VariableTerm x        , ConstTerm _        ) -> Just ([], Just (x := p))
@@ -294,9 +288,7 @@ unificateTerms t p = case (t, p) of
   (VariableTerm x        , CompoundTerm f args) -> case find (t ==) args of
     Just _  -> Nothing
     Nothing -> Just ([], Just (x := p))
-
   (_, VariableTerm _) -> unificateTerms p t
-
   (CompoundTerm f1 args1, CompoundTerm f2 args2) ->
     if f1 == f2 && length args1 == length args2
       then Just (zipWith (:?) args1 args2, Nothing)

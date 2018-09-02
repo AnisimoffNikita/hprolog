@@ -1,4 +1,4 @@
-module Language.Prolog.Semantics.Types 
+module Language.Prolog.Semantics.Types
   where
 
 import           Data.List                      ( intercalate )
@@ -16,7 +16,6 @@ instance Show Clause where
   show (Fact head) = show head ++ "."
   show (Rule head body) = show head ++ "(" ++ intercalate ", " (map show body)  ++ ")" ++ "."
 
-
 data Term
   = ConstTerm Const
   | VariableTerm Variable
@@ -30,13 +29,12 @@ instance Show Term where
   show (ConstTerm x) = show x
   show (VariableTerm x) = show x
   show (CompoundTerm "1" [x,y]) = "[" ++ showList x y ++ "]"
-    where 
+    where
       showList h (CompoundTerm "!" [x, y]) = show h ++ "," ++ showList x y
       showList h (ConstTerm (Atom "[]")) = show h
       showList h t = show h ++ "|" ++ show t
   show (CompoundTerm f terms) = f ++ "(" ++ intercalate ", " (map show terms)  ++ ")"
   show Cut = "!"
-
 
 data Const
   = Atom String
@@ -49,7 +47,6 @@ instance Show Const where
   show (Int x) = show x
   show (Float x) = show x
 
-
 data Variable
   = Variable VarID String
   | Anonymous
@@ -58,7 +55,6 @@ data Variable
 instance Show Variable where
   show (Variable id name) = name ++ "_" ++ show id
   show Anonymous = "_"
-
 
 type VarID = Int
 

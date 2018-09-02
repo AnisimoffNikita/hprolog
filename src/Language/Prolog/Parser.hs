@@ -195,7 +195,7 @@ parseOnlyClauses = do
 
 parseProgram :: Parser Program
 parseProgram = do
-  lexeme $ string "predicates"
+  lexeme $ string "clauses"
   p <- lexeme $ many (try parseClause')
   lexeme $ string "goal"
   q <- lexeme $ many1 parseTerm'
@@ -211,7 +211,14 @@ lexeme p = p <* whitespace
 
 (<:>) a b = (:) <$> a <*> b
 
+plus :: Parser String
 plus = char '+' >> number
+
+minus :: Parser String
 minus = char '-' <:> number
+
+number :: Parser String
 number = many1 digit
+
+integer :: Parser String
 integer = plus <|> minus <|> number

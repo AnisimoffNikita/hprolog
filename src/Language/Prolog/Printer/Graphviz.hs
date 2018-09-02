@@ -31,7 +31,7 @@ showTree :: SearchTree -> G.DotGraph L.Text
 showTree t@(Node target result r trees) = digraph (Str "tree") $  do
   node (show' r) [textLabel (show' r), shape Ellipse]
   forM_ trees $ \t' -> do
-    showTree' t'
+    showTreeInner t'
     case t' of
       Node (Just target) _ _ _  ->
         edge (show' r) (show' t') [textLabel . show' $ target]
@@ -42,13 +42,13 @@ showTree t@(Node target result r trees) = digraph (Str "tree") $  do
       _ -> show' r --> show' t'
 showTree _ = digraph (Str "tree") $ node' "Empty Tree"
 
-showTree' :: SearchTree -> Dot L.Text
-showTree' t@(Node target result r trees) = do
+showTreeInner :: SearchTree -> Dot L.Text
+showTreeInner t@(Node target result r trees) = do
   node (show' t) [textLabel (show' result), shape BoxShape]
   node (show' r) [textLabel (show' r), shape Ellipse]
   show' t --> show' r
   forM_ trees $ \t' -> do
-    showTree' t'
+    showTreeInner t'
     case t' of
       Node (Just target) _ _ _  ->
         edge (show' r) (show' t') [textLabel . show' $ target]
@@ -57,12 +57,8 @@ showTree' t@(Node target result r trees) = do
       Fail (Just target)        ->
         edge (show' r) (show' t') [textLabel . show' $ target]
       _ -> show' r --> show' t'
-
-showTree' t@(Ok _ result) = node (show' t) [textLabel (show' result), shape BoxShape]
-showTree' t@(Fail _) = node (show' t) [textLabel (pack "Fail"), shape BoxShape]
-
-doDots :: PrintDotRepr dg n => [(FilePath, dg n)] -> IO ()
-doDots cases = forM_ cases createImage
+showTreeInner t@(Ok _ result) = node (show' t) [textLabel (show' result), shape BoxShape]
+showTreeInner t@(Fail _) = node (show' t) [textLabel (pack "Fail"), shape BoxShape]
 
 createImage :: PrintDotRepr dg n => (FilePath, dg n) -> IO FilePath
 createImage (n, g) = createImageInDir "." n Png g
