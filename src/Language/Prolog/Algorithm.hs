@@ -218,10 +218,9 @@ defaultHandler term sclauses resolvent substitution = do
   let
     cutInfo   = termInfo term
     branches' = map snd $ takeWhile' check branches
-    check (x, _) = fmap termInfo x /= Just cutInfo
-    needCut = if length branches /= length branches then Just term else Nothing
-  return (needCut, branches')
-
+    check (x, _) = fmap termInfo x == Nothing
+    cut = if length branches /= length branches' then Just term else Nothing
+  return (cut, branches')
 
 updateResolvent :: Resolvent -> Substitution -> Resolvent
 updateResolvent EmptyResolvent                   result = EmptyResolvent
