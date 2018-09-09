@@ -251,16 +251,29 @@ unificateClauseTerm (Fact t1) t2 result = do
   return (t1, [], x)
 
 
+-- unification :: Target -> Substitution -> Maybe Substitution
+-- unification []              work = Just work
+-- unification (t :? p : rest) work = do
+--   (stack', work') <- unificateTerms t p
+--   case work' of
+--     Just (t := p) -> do
+--       updatedStack <- updateEquals t p rest
+--       updatedWork  <- updateResult t p work
+--       unification updatedStack (t := p : updatedWork)
+--     Nothing -> unification (stack' ++ rest) work
+
+
 unification :: Target -> Substitution -> Maybe Substitution
-unification []              work = Just work
-unification (t :? p : rest) work = do
-  (stack', work') <- unificateTerms t p
-  case work' of
+unification []                 substitution = Just substitution
+unification (t :? p : targets) substitution = do
+  (newTargets, newSubstitution) <- unificateTerms t p
+  case newSubstitution of
     Just (t := p) -> do
-      updatedStack <- updateEquals t p rest
-      updatedWork  <- updateResult t p work
-      unification updatedStack (t := p : updatedWork)
-    Nothing -> unification (stack' ++ rest) work
+      updatedTargets       <- updateEquals t p targets
+      updatedSubstitution  <- updateResult t p substitution
+      unification updatedTargets (t := p : updatedSubstitution)
+    Nothing -> unification (newTargets ++ targets) substitution
+
 
 updateEquals :: Variable -> Term -> Target -> Maybe Target
 updateEquals t p equals = Just $ map f equals

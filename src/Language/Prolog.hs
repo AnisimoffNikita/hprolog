@@ -8,6 +8,8 @@ module Language.Prolog
 import Language.Prolog.Algorithm as X
 import Language.Prolog.IO as X
 import System.Console.CmdArgs
+import System.IO
+import Debug.Trace
 
 data PrologMode
   = Tree | Result | SteppedResult
@@ -36,6 +38,21 @@ run = do
         SteppedResult -> printSteppedResult file
         Tree -> printTree file output
 
+runTest :: IO()
+runTest = do
+
+  let
+    file = "p6.pro"
+    mode = Tree
+    output = "test.t"
+  if file == ""
+    then putStrLn "file not specified"
+    else
+      case mode of
+        Result -> printResult file
+        SteppedResult -> printSteppedResult file
+        Tree -> printTree file output
+
 printResult :: FilePath -> IO()
 printResult filepath = do
   x <- readProgram filepath
@@ -52,6 +69,7 @@ printSteppedResult filepath = do
     Left err -> putStrLn err
     Right program -> do
       let result = search program
+      hSetBuffering stdin NoBuffering
       printNextResult result
   where
     printNextResult [] = putStrLn "done"
@@ -60,10 +78,10 @@ printSteppedResult filepath = do
       putStrLn "press n for the next result"
       putStrLn "press s to stop"
       c <- getChar
+      putStrLn ""
       case c of
         'n' -> printNextResult xs
         's' -> putStrLn "done"
-        _ -> printNextResult r
 
 printTree :: FilePath -> FilePath -> IO()
 printTree filepath image = do
@@ -72,5 +90,6 @@ printTree filepath image = do
     Left err -> putStrLn err
     Right program -> do
       result <- return $ search_ program
+      print result
       createTree result image
       return ()

@@ -161,8 +161,7 @@ term :: Parser Term
 term = P.between (char '(' >> whitespace) (char ')') parseTarget <|> parseTerm
 
 table =
-  [ [ makeOperator Infix AssocLeft "\\"
-    , makeOperator Infix AssocLeft "^"
+  [ [ makeOperator Infix AssocLeft "^"
     , makeOperator Infix AssocLeft "**"
     ]
   , [ makeOperator Infix AssocLeft "*"
@@ -171,19 +170,18 @@ table =
     , makeOperator Infix AssocLeft "mod"
     ]
   , [makeOperator Infix AssocLeft "+", makeOperator Infix AssocLeft "-"]
-  , [ makeOperator Infix AssocLeft "="
+  , [ makeOperator Infix AssocLeft "=<"
+    , makeOperator Infix AssocLeft "="
     , makeOperator Infix AssocLeft "is"
-    , makeOperator Infix AssocLeft "=="
     , makeOperator Infix AssocLeft "\\="
     , makeOperator Infix AssocLeft "<"
-    , makeOperator Infix AssocLeft "=<"
-    , makeOperator Infix AssocLeft ">"
     , makeOperator Infix AssocLeft ">="
+    , makeOperator Infix AssocLeft ">"
     ]
   ]
 
 makeOperator op assoc name = op
-  (makeFunc name <$ try (string name >> whitespace))
+  (try $ makeFunc name <$  (string name >> whitespace))
   assoc
   where makeFunc name a b = CompoundTerm (Symbolic name) [a, b]
 

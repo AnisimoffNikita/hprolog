@@ -5,4 +5,4 @@ f(N,X):-M is N - 1, f(M,Y), X is Y * N.
 
 goal
 
-f(3,X).
+f(2,X).
