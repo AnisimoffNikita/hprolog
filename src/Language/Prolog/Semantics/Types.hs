@@ -28,9 +28,9 @@ type Question = [Term]
 instance Show Term where
   show (ConstTerm x) = show x
   show (VariableTerm x) = show x
-  show (CompoundTerm "1" [x,y]) = "[" ++ showList x y ++ "]"
+  show (CompoundTerm "." [x,y]) = "[" ++ showList x y ++ "]"
     where
-      showList h (CompoundTerm "!" [x, y]) = show h ++ "," ++ showList x y
+      showList h (CompoundTerm "." [x, y]) = show h ++ "," ++ showList x y
       showList h (ConstTerm (Atom "[]")) = show h
       showList h t = show h ++ "|" ++ show t
   show (CompoundTerm f terms) = f ++ "(" ++ intercalate ", " (map show terms)  ++ ")"

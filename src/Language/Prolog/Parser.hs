@@ -92,10 +92,10 @@ parseString = lexeme $ toTerm <$> between (char '"') (char '"') (many alphaNum)
  where
   toTerm []  = AtomTerm $ Symbolic "[]"
   toTerm [x] = CompoundTerm
-    (Symbolic "!")
+    (Symbolic ".")
     [AtomTerm $ Symbolic [x], AtomTerm $ Symbolic "[]"]
   toTerm (x : xs) =
-    CompoundTerm (Symbolic "!") [AtomTerm $ Symbolic [x], toTerm xs]
+    CompoundTerm (Symbolic ".") [AtomTerm $ Symbolic [x], toTerm xs]
 
 parseList :: Parser Term
 parseList = lexeme $ do
@@ -106,8 +106,8 @@ parseList = lexeme $ do
   return $ toTerm a b
  where
   toTerm []       z = z
-  toTerm [x     ] z = CompoundTerm (Symbolic "!") [x, z]
-  toTerm (x : xs) z = CompoundTerm (Symbolic "!") [x, toTerm xs z]
+  toTerm [x     ] z = CompoundTerm (Symbolic ".") [x, z]
+  toTerm (x : xs) z = CompoundTerm (Symbolic ".") [x, toTerm xs z]
 
 
 parseCut :: Parser Term
@@ -116,8 +116,8 @@ parseCut = char '!' >> return Cut
 parseTerm' :: Parser Term
 parseTerm' =
   lexeme
-    $   try parseCompound
-    <|> try parseList
+    $   try parseList
+    <|> try parseCompound
     <|> parseAtom
     <|> parseNumber
     <|> parseVariable

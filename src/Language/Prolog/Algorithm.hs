@@ -51,7 +51,8 @@ instance Show Resolvent where
 initResolvent :: [Term] -> Resolvent
 initResolvent question = Resolvent Nothing question EmptyResolvent
 
-type Cutting = Maybe Term
+data Cutted = Cutted deriving Eq
+type Cutting = Maybe Cutted
 
 type PrologM a = State VarID a
 
@@ -119,7 +120,7 @@ search' sclauses (Resolvent func [] resolvent) substitution =
   search' sclauses resolvent substitution
 search' sclauses (Resolvent func (Cut : rest) resolvent) substitution = do
   (_, branches) <- search' sclauses (Resolvent func rest resolvent) substitution
-  return (func, branches)
+  return (Just Cutted, branches)
 search' sclauses (Resolvent func (term : rest) resolvent) substitution = do
   let resolvent' = (Resolvent func rest resolvent)
   case term of
@@ -216,11 +217,10 @@ defaultHandler term sclauses resolvent substitution = do
         (cutted, Node (Just $ term :? func') substitution' resolvent'' branches)
   branches <- mapM f unfications
   let
-    cutInfo   = termInfo term
-    branches' = map snd $ takeWhile' check branches
-    check (x, _) = fmap termInfo x == Nothing
-    cut = if length branches /= length branches' then Just term else Nothing
-  return (cut, branches')
+    branches' = takeWhile' check branches
+    check (x, _) = x == Nothing
+    cut = (fst . last $ branches')
+  return (cut, map snd branches')
 
 updateResolvent :: Resolvent -> Substitution -> Resolvent
 updateResolvent EmptyResolvent                   result = EmptyResolvent
@@ -248,19 +248,6 @@ unificateClauseTerm (Rule t1 b) t2 result = do
 unificateClauseTerm (Fact t1) t2 result = do
   x <- unification [t1 :? t2] result
   return (t1, [], x)
-
-
--- unification :: Target -> Substitution -> Maybe Substitution
--- unification []              work = Just work
--- unification (t :? p : rest) work = do
---   (stack', work') <- unificateTerms t p
---   case work' of
---     Just (t := p) -> do
---       updatedStack <- updateEquals t p rest
---       updatedWork  <- updateResult t p work
---       unification updatedStack (t := p : updatedWork)
---     Nothing -> unification (stack' ++ rest) work
-
 
 unification :: Target -> Substitution -> Maybe Substitution
 unification []                 substitution = Just substitution
