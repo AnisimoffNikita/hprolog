@@ -3,8 +3,9 @@ module Language.Prolog.Algorithm where
 
 
 import           Control.Monad.State
-import           Data.List (find, elem, intercalate)
+import           Data.List (find, elem, intercalate, sortBy)
 import qualified Data.Map as M
+import qualified Data.Set as S
 import           Debug.Trace
 import           Language.Prolog.Helper
 import qualified Language.Prolog.Syntax as Syntax
@@ -52,7 +53,7 @@ initResolvent :: [Term] -> Resolvent
 initResolvent question = Resolvent Nothing question EmptyResolvent
 
 data Cutted = Cutted deriving Eq
-type Cutting = [Term]
+type Cutting = [(Term, Int)]
 
 type PrologM a = State VarID a
 
@@ -118,11 +119,14 @@ search' _ EmptyResolvent substitution =
   return ([], [Ok Nothing substitution])
 search' sclauses (Resolvent func [] resolvent) substitution =
   search' sclauses resolvent substitution
-search' sclauses (Resolvent func (Cut : rest) resolvent) substitution = do
-  (cs, branches) <- search' sclauses (Resolvent func rest resolvent) substitution
-  case func of
-    Just c -> return (c:cs, branches)
-    Nothing -> return (cs, branches)
+search' sclauses (Resolvent func (Cut x : rest) resolvent) substitution = do
+  let nr  = succCut (Resolvent func rest resolvent)
+  (cs, branches) <- search' sclauses nr substitution
+  cs' <- return $ case func of
+    Just c -> predCut $ (c, x + 1):cs
+    Nothing -> predCut $ cs
+
+  return (cs', branches)
 search' sclauses (Resolvent func (term : rest) resolvent) substitution = do
   let resolvent' = (Resolvent func rest resolvent)
   case term of
@@ -166,9 +170,9 @@ explicitUnification (CompoundTerm "=" [x, y]) sclauses resolvent substitution =
     case t of
       Nothing      -> return ([], [Fail (Just $ x :? y)])
       Just result' -> do
-        let resolvent' = updateResolvent resolvent result'
+        let resolvent' = updateResolvent (succCut resolvent) result'
         (cutted, trees) <- search' sclauses resolvent' result'
-        return (cutted, [Node (Just $ x :? y) result' resolvent' trees])
+        return (predCut cutted, [Node (Just $ x :? y) result' resolvent' trees])
 
 isHandler
   :: Term
@@ -183,9 +187,9 @@ isHandler (CompoundTerm "is" [var, formula]) sclauses resolvent substitution =
     case t of
       Nothing      -> return ([], [Fail (Just $ var :? formula)])
       Just result' -> do
-        let resolvent' = updateResolvent resolvent result'
+        let resolvent' = updateResolvent (succCut resolvent) result'
         (cutted, trees) <- search' sclauses resolvent' result'
-        return (cutted, [Node Nothing result' resolvent' trees])
+        return (predCut cutted, [Node Nothing result' resolvent' trees])
 
 boolHandler
   :: Term
@@ -212,20 +216,46 @@ defaultHandler term sclauses resolvent substitution = do
     f (Nothing, Rule p _) = return ([], Fail (Just $ p :? term))
     f (Nothing, Fact p) = return ([], Fail (Just $ p :? term))
     f (Just (func', terms', substitution'), _) = do
-      let resolvent'  = Resolvent (Just func') terms' resolvent
+      let resolvent'  = Resolvent (Just func') terms' (succCut  resolvent)
           resolvent'' = updateResolvent resolvent' substitution'
       (cutted, branches) <- search' sclauses resolvent'' substitution'
       return
         (cutted, Node (Just $ term :? func') substitution' resolvent'' branches)
   branches <- mapM f unfications
   let
-    cutInfo = termInfo term
-    branches' = map drops branches
-    drops (cs, br) = (dropWhile (\x -> termInfo x /= cutInfo) cs, br)
-    branches'' = takeWhile' checkAll branches'
-    checkAll (cs, _) = cs == []
-    cut = fst.last $ branches''
-  return (cut, map snd branches'')
+    -- cutInfo = termInfo term
+    -- branches' = map drops branches
+    -- drops (cs, br) = (dropWhile (\(x,_) -> termInfo x /= cutInfo)  cs, br)
+    -- branches'' = takeWhile' checkAll branches'
+    -- checkAll (cs, _) = cs == []
+    -- cut = fst.last $ branches''
+
+    branches' = takeWhile' check branches
+    check (cs,_) = find (\(_,x) -> x == 0) cs == Nothing
+    cutters'  = S.fromList (concat (map fst branches'))
+    cutters'' = S.toList cutters'
+    cutters   = let x = sortBy (\(_, x) (_, y) -> compare x y) cutters''
+      in if length x == 0
+        then []
+        else if (snd.head $ x) == 0 then tail x else x
+
+
+  return (predCut cutters, map snd branches')
+
+predCut :: [(Term, Int)] -> [(Term, Int)]
+predCut = map (\(x, y) -> (x, y - 1))
+
+succCut :: Resolvent -> Resolvent
+succCut = updateCut succ
+
+updateCut :: (Int -> Int) -> Resolvent -> Resolvent
+updateCut _ EmptyResolvent = EmptyResolvent
+updateCut u (Resolvent f xs rest) = (Resolvent f xs' rest')
+  where
+    rest' = updateCut u rest
+    xs' = map change xs
+    change (Cut x) = Cut (u x)
+    change x = x
 
 updateResolvent :: Resolvent -> Substitution -> Resolvent
 updateResolvent EmptyResolvent                   result = EmptyResolvent
@@ -297,6 +327,6 @@ unificateTerms t p = case (t, p) of
     if f1 == f2 && length args1 == length args2
       then Just (zipWith (:?) args1 args2, Nothing)
       else Nothing
-  (Cut, _  ) -> error "cut unification"
-  (_  , Cut) -> error "cut unification"
+  (Cut _, _  ) -> error "cut unification"
+  (_  , Cut _) -> error "cut unification"
   (t  , p  ) -> if t == p then Just ([], Nothing) else Nothing

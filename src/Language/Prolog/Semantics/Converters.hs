@@ -44,7 +44,7 @@ semanticsTerm (S.AtomTerm     a  ) = semanticsAtom a
 semanticsTerm (S.NumberTerm   a  ) = semanticsNumber a
 semanticsTerm (S.VariableTerm a  ) = semanticsVariable a
 semanticsTerm (S.CompoundTerm a t) = semanticsCompoundTerm a t
-semanticsTerm S.Cut                = return Cut
+semanticsTerm S.Cut                = return (Cut 0)
 
 semanticsAtom :: S.Atom -> SemanticsState Term
 semanticsAtom (S.Symbolic s) = return $ ConstTerm (Atom s)

@@ -90,6 +90,5 @@ printTree filepath image = do
     Left err -> putStrLn err
     Right program -> do
       result <- return $ search_ program
-      print result
       createTree result image
       return ()

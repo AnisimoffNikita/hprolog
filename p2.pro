@@ -1,10 +1,9 @@
 clauses
 
-a(X):-b(X),!.
-a(X):-c(X).
-b(3):-!.
-c(4).
+f(0, 5):-!.
+f(X, N):-Y is X - 1, f(Y, N).
+f(_, 3).
 
 goal
 
-a(X).
+f(4,X).
