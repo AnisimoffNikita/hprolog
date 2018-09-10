@@ -1,8 +1,10 @@
+clauses
 
+a(X):-b(X),!.
+a(X):-c(X).
+b(3):-!.
+c(4).
 
-perm([], []).
-perm(Source, [Element|Tail]) :- member_list_exclude(Element, Source, SourceExcluded), 
-             perm(SourceExcluded, Tail).
+goal
 
-member_list_exclude(X, [X|L], L).
-member_list_exclude(X, [Y|L], [Y|Ls]) :- member_list_exclude(X, L, Ls).
+a(X).

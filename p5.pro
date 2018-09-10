@@ -5,7 +5,7 @@ clauses
    		append(Tail, List2, TailResult).
 
   divide([], _, [], []):-!.
-	divide([Head|Tail], Pivot, [Head|GreaterList], SmallerList):-Head > Pivot,
+	divide([Head|Tail], Pivot, [Head|GreaterList], SmallerList):-Head >= Pivot,
   		 !,
   		divide(Tail, Pivot, GreaterList, SmallerList).
 	divide([Head|Tail], Pivot, GreaterList, [Head|SmallerList]):-

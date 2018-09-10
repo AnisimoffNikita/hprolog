@@ -52,7 +52,7 @@ initResolvent :: [Term] -> Resolvent
 initResolvent question = Resolvent Nothing question EmptyResolvent
 
 data Cutted = Cutted deriving Eq
-type Cutting = Maybe Cutted
+type Cutting = [Term]
 
 type PrologM a = State VarID a
 
@@ -115,12 +115,14 @@ search'
   -> Substitution
   -> PrologM (Cutting, [SearchTree])
 search' _ EmptyResolvent substitution =
-  return (Nothing, [Ok Nothing substitution])
+  return ([], [Ok Nothing substitution])
 search' sclauses (Resolvent func [] resolvent) substitution =
   search' sclauses resolvent substitution
 search' sclauses (Resolvent func (Cut : rest) resolvent) substitution = do
-  (_, branches) <- search' sclauses (Resolvent func rest resolvent) substitution
-  return (Just Cutted, branches)
+  (cs, branches) <- search' sclauses (Resolvent func rest resolvent) substitution
+  case func of
+    Just c -> return (c:cs, branches)
+    Nothing -> return (cs, branches)
 search' sclauses (Resolvent func (term : rest) resolvent) substitution = do
   let resolvent' = (Resolvent func rest resolvent)
   case term of
@@ -162,7 +164,7 @@ explicitUnification (CompoundTerm "=" [x, y]) sclauses resolvent substitution =
   do
     let t = unification [x :? y] substitution
     case t of
-      Nothing      -> return (Nothing, [Fail (Just $ x :? y)])
+      Nothing      -> return ([], [Fail (Just $ x :? y)])
       Just result' -> do
         let resolvent' = updateResolvent resolvent result'
         (cutted, trees) <- search' sclauses resolvent' result'
@@ -179,7 +181,7 @@ isHandler (CompoundTerm "is" [var, formula]) sclauses resolvent substitution =
     let r = eval formula
         t = r >>= (\x -> unification [var :? x] substitution)
     case t of
-      Nothing      -> return (Nothing, [Fail (Just $ var :? formula)])
+      Nothing      -> return ([], [Fail (Just $ var :? formula)])
       Just result' -> do
         let resolvent' = updateResolvent resolvent result'
         (cutted, trees) <- search' sclauses resolvent' result'
@@ -195,7 +197,7 @@ boolHandler bool sclauses resolvent substitution = do
   let r = evalBool bool
   case r of
     Just True -> search' sclauses resolvent substitution
-    _         -> return (Nothing, [])
+    _         -> return ([], [])
 
 defaultHandler
   :: Term
@@ -207,8 +209,8 @@ defaultHandler term sclauses resolvent substitution = do
   clauses <- mapM semanticsClause_ sclauses
   let
     unfications = zip (unificateClausesTerm clauses term substitution) clauses
-    f (Nothing, Rule p _) = return (Nothing, Fail (Just $ p :? term))
-    f (Nothing, Fact p) = return (Nothing, Fail (Just $ p :? term))
+    f (Nothing, Rule p _) = return ([], Fail (Just $ p :? term))
+    f (Nothing, Fact p) = return ([], Fail (Just $ p :? term))
     f (Just (func', terms', substitution'), _) = do
       let resolvent'  = Resolvent (Just func') terms' resolvent
           resolvent'' = updateResolvent resolvent' substitution'
@@ -217,10 +219,13 @@ defaultHandler term sclauses resolvent substitution = do
         (cutted, Node (Just $ term :? func') substitution' resolvent'' branches)
   branches <- mapM f unfications
   let
-    branches' = takeWhile' check branches
-    check (x, _) = x == Nothing
-    cut = (fst . last $ branches')
-  return (cut, map snd branches')
+    cutInfo = termInfo term
+    branches' = map drops branches
+    drops (cs, br) = (dropWhile (\x -> termInfo x /= cutInfo) cs, br)
+    branches'' = takeWhile' checkAll branches'
+    checkAll (cs, _) = cs == []
+    cut = fst.last $ branches''
+  return (cut, map snd branches'')
 
 updateResolvent :: Resolvent -> Substitution -> Resolvent
 updateResolvent EmptyResolvent                   result = EmptyResolvent
