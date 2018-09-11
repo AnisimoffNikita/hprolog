@@ -121,13 +121,13 @@ search' sclauses (Resolvent func [] resolvent) substitution = do
   (x,y) <- search' sclauses ( resolvent) substitution
   return (x, y)
 search' sclauses (Resolvent func (Cut x : rest) resolvent) substitution = do
-  let nr  = succCut (Resolvent func rest resolvent)
+  let nr  = (Resolvent func rest resolvent)
   (cs, branches) <- search' sclauses nr substitution
   cs' <- return $ case func of
-    Just c -> (c, x+1):cs
+    Just c -> (c, x):cs
     Nothing -> cs
 
-  return (predCut cs', branches)
+  return ( cs', branches)
 search' sclauses (Resolvent func (term : rest) resolvent) substitution = do
   let resolvent' = succCut (Resolvent func rest resolvent)
 
@@ -227,10 +227,9 @@ defaultHandler term sclauses resolvent substitution = do
   branches <- mapM f unfications
   let
     branches' = takeWhile' check branches
-    check (cs,_) = find (\(_,x) -> x == 0) cs == Nothing
-    cutters'  = S.fromList (concat (map fst branches'))
-    cutters'' = S.toList cutters'
-    cutters   = let x = sortBy (\(_, x) (_, y) -> compare x y) cutters''
+    check (cs,_) = cs == []
+    cutters'' = fst . last $ branches'
+    cutters   = let x = cutters''
       in if length x == 0
         then []
         else if (snd.head $ x) == 0 then tail x else x
