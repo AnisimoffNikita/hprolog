@@ -34,7 +34,7 @@ instance Show Term where
       showList h (ConstTerm (Atom "[]")) = show h
       showList h t = show h ++ "|" ++ show t
   show (CompoundTerm f terms) = f ++ "(" ++ intercalate ", " (map show terms)  ++ ")"
-  show (Cut _) = "!"
+  show (Cut x) = "!_" ++ show x
 
 data Const
   = Atom String

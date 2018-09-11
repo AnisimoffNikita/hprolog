@@ -5,8 +5,8 @@ clauses
    		append(Tail, List2, TailResult).
 
   divide([], _, [], []):-!.
-	divide([Head|Tail], Pivot, [Head|GreaterList], SmallerList):-Head > Pivot,
-  		 !,
+	divide([Head|Tail], Pivot, [Head|GreaterList], SmallerList):-Head >= Pivot,
+			!,
   		divide(Tail, Pivot, GreaterList, SmallerList).
 	divide([Head|Tail], Pivot, GreaterList, [Head|SmallerList]):-
   		divide(Tail, Pivot, GreaterList, SmallerList).
@@ -22,4 +22,4 @@ clauses
 
 goal
 
-  qsort([3,2,1], X).
+  qsort([3,4,2,1], X).

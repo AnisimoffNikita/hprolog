@@ -117,19 +117,21 @@ search'
   -> PrologM (Cutting, [SearchTree])
 search' _ EmptyResolvent substitution =
   return ([], [Ok Nothing substitution])
-search' sclauses (Resolvent func [] resolvent) substitution =
-  search' sclauses resolvent substitution
+search' sclauses (Resolvent func [] resolvent) substitution = do
+  (x,y) <- search' sclauses ( resolvent) substitution
+  return (x, y)
 search' sclauses (Resolvent func (Cut x : rest) resolvent) substitution = do
   let nr  = succCut (Resolvent func rest resolvent)
   (cs, branches) <- search' sclauses nr substitution
   cs' <- return $ case func of
-    Just c -> predCut $ (c, x + 1):cs
-    Nothing -> predCut $ cs
+    Just c -> (c, x+1):cs
+    Nothing -> cs
 
-  return (cs', branches)
+  return (predCut cs', branches)
 search' sclauses (Resolvent func (term : rest) resolvent) substitution = do
-  let resolvent' = (Resolvent func rest resolvent)
-  case term of
+  let resolvent' = succCut (Resolvent func rest resolvent)
+
+  (x, y) <- case term of
     CompoundTerm "is" [_, _] -> isHandler term sclauses resolvent' substitution
     CompoundTerm "<" [_, _] ->
       boolHandler term sclauses resolvent' substitution
@@ -148,7 +150,8 @@ search' sclauses (Resolvent func (term : rest) resolvent) substitution = do
     CompoundTerm "trace" [x] ->
       traceHandler term sclauses resolvent' substitution
     _ ->
-      defaultHandler term sclauses (Resolvent func rest resolvent) substitution
+      defaultHandler term sclauses resolvent' substitution
+  return (predCut x, y)
 
 traceHandler
   :: Term
@@ -170,9 +173,9 @@ explicitUnification (CompoundTerm "=" [x, y]) sclauses resolvent substitution =
     case t of
       Nothing      -> return ([], [Fail (Just $ x :? y)])
       Just result' -> do
-        let resolvent' = updateResolvent (succCut resolvent) result'
+        let resolvent' = updateResolvent (resolvent) result'
         (cutted, trees) <- search' sclauses resolvent' result'
-        return (predCut cutted, [Node (Just $ x :? y) result' resolvent' trees])
+        return (cutted, [Node (Just $ x :? y) result' resolvent' trees])
 
 isHandler
   :: Term
@@ -187,9 +190,9 @@ isHandler (CompoundTerm "is" [var, formula]) sclauses resolvent substitution =
     case t of
       Nothing      -> return ([], [Fail (Just $ var :? formula)])
       Just result' -> do
-        let resolvent' = updateResolvent (succCut resolvent) result'
+        let resolvent' = updateResolvent (resolvent) result'
         (cutted, trees) <- search' sclauses resolvent' result'
-        return (predCut cutted, [Node Nothing result' resolvent' trees])
+        return (cutted, [Node Nothing result' resolvent' trees])
 
 boolHandler
   :: Term
@@ -216,11 +219,11 @@ defaultHandler term sclauses resolvent substitution = do
     f (Nothing, Rule p _) = return ([], Fail (Just $ p :? term))
     f (Nothing, Fact p) = return ([], Fail (Just $ p :? term))
     f (Just (func', terms', substitution'), _) = do
-      let resolvent'  = Resolvent (Just func') terms' (succCut  resolvent)
+      let resolvent'  = Resolvent (Just func') terms' resolvent
           resolvent'' = updateResolvent resolvent' substitution'
       (cutted, branches) <- search' sclauses resolvent'' substitution'
       return
-        (cutted, Node (Just $ term :? func') substitution' resolvent'' branches)
+        ( cutted, Node (Just $ term :? func') substitution' resolvent'' branches)
   branches <- mapM f unfications
   let
     branches' = takeWhile' check branches
@@ -231,12 +234,13 @@ defaultHandler term sclauses resolvent substitution = do
       in if length x == 0
         then []
         else if (snd.head $ x) == 0 then tail x else x
-
-
-  return (predCut cutters, map snd branches')
+  return (cutters, map snd branches')
 
 predCut :: [(Term, Int)] -> [(Term, Int)]
 predCut = map (\(x, y) -> (x, y - 1))
+
+predCut' :: Resolvent -> Resolvent
+predCut' = updateCut pred
 
 succCut :: Resolvent -> Resolvent
 succCut = updateCut succ

@@ -7,8 +7,6 @@ clauses
 	bubble(L,L1):-
      		permutation(L,LL),!, bubble(LL,L1).
 	bubble(L,L).
-
-  foo(3).
 goal
 
   bubble([3,2,1], X).

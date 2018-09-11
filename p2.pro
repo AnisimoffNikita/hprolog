@@ -1,9 +1,9 @@
 clauses
 
-  append([], L, L).
-	append([H|T], L, [H|X]):-
-    append(T, L, X).
-
+  a(X):-b(X),!.
+  a(X):-c(X).
+  b(3):-!.
+  c(4).
 goal
 
-  append([1,2],[3],X).
+  a(X).
