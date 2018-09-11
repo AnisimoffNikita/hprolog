@@ -12,7 +12,7 @@ import System.IO
 import Debug.Trace
 
 data PrologMode
-  = Tree | Result | SteppedResult
+  = Tree | Result
   deriving (Show, Data, Typeable)
 
 data Prolog = Prolog
@@ -35,22 +35,6 @@ run = do
     else
       case mode of
         Result -> printResult file
-        SteppedResult -> printSteppedResult file
-        Tree -> printTree file output
-
-runTest :: IO()
-runTest = do
-
-  let
-    file = "p6.pro"
-    mode = Tree
-    output = "test.t"
-  if file == ""
-    then putStrLn "file not specified"
-    else
-      case mode of
-        Result -> printResult file
-        SteppedResult -> printSteppedResult file
         Tree -> printTree file output
 
 printResult :: FilePath -> IO()
@@ -61,27 +45,6 @@ printResult filepath = do
     Right program -> do
       result <- return $ search program
       print result
-
-printSteppedResult :: FilePath -> IO ()
-printSteppedResult filepath = do
-  x <- readProgram filepath
-  case x of
-    Left err -> putStrLn err
-    Right program -> do
-      let result = search program
-      hSetBuffering stdin NoBuffering
-      printNextResult result
-  where
-    printNextResult [] = putStrLn "done"
-    printNextResult r@(x:xs) = do
-      print x
-      putStrLn "press n for the next result"
-      putStrLn "press s to stop"
-      c <- getChar
-      putStrLn ""
-      case c of
-        'n' -> printNextResult xs
-        's' -> putStrLn "done"
 
 printTree :: FilePath -> FilePath -> IO()
 printTree filepath image = do

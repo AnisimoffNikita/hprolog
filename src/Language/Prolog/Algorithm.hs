@@ -223,13 +223,6 @@ defaultHandler term sclauses resolvent substitution = do
         (cutted, Node (Just $ term :? func') substitution' resolvent'' branches)
   branches <- mapM f unfications
   let
-    -- cutInfo = termInfo term
-    -- branches' = map drops branches
-    -- drops (cs, br) = (dropWhile (\(x,_) -> termInfo x /= cutInfo)  cs, br)
-    -- branches'' = takeWhile' checkAll branches'
-    -- checkAll (cs, _) = cs == []
-    -- cut = fst.last $ branches''
-
     branches' = takeWhile' check branches
     check (cs,_) = find (\(_,x) -> x == 0) cs == Nothing
     cutters'  = S.fromList (concat (map fst branches'))

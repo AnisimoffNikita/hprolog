@@ -1,9 +1,9 @@
 clauses
 
-f(0, 5):-!.
-f(X, N):-Y is X - 1, f(Y, N).
-f(_, 3).
+  append([], L, L).
+	append([H|T], L, [H|X]):-
+    append(T, L, X).
 
 goal
 
-f(4,X).
+  append([1,2],[3],X).
