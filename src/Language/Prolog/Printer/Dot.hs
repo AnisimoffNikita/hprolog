@@ -1,5 +1,5 @@
 module Language.Prolog.Printer.Dot
-  where 
+  where
 
 import Data.List (intercalate)
 
@@ -11,16 +11,15 @@ dotFile fn tree = writeFile fn $ printer tree
 printResult :: Substitution -> String
 printResult = show
 
-printResolvent :: Resolvent -> String 
-printResolvent EmptyResolvent = ""
-printResolvent (Resolvent _ terms resolvent) = intercalate "\n" $ map show terms ++ [printResolvent resolvent]
+printResolvent :: Resolvent -> String
+printResolvent terms = intercalate "\n" $ map show terms
 
-printer :: SearchTree -> String 
+printer :: SearchTree -> String
 printer t = "digraph G{\n" ++ printer' t ++ "\n}"
 
-printer' :: SearchTree -> String 
+printer' :: SearchTree -> String
 printer' t@(Node _ result resolvent trees) = (intercalate "\n" $ map f trees) ++ "\n\n" ++ rest
-  where 
+  where
     header = makeHeader t
     f tree = header ++ "\n->\n" ++ makeHeader tree
     rest :: String

@@ -3,15 +3,15 @@ module Language.Prolog.Algorithm where
 
 
 import           Control.Monad.State
-import           Data.List (find, elem, intercalate, sortBy)
-import qualified Data.Map as M
-import qualified Data.Set as S
+import           Data.List                 (elem, find, intercalate, sortBy)
+import qualified Data.Map                  as M
+import qualified Data.Set                  as S
 import           Debug.Trace
-import           Language.Prolog.Helper
-import qualified Language.Prolog.Syntax as Syntax
-import           Language.Prolog.Semantics
-import           Language.Prolog.Math
 import           Language.Prolog.Bool
+import           Language.Prolog.Helper
+import           Language.Prolog.Math
+import           Language.Prolog.Semantics
+import qualified Language.Prolog.Syntax    as Syntax
 
 data OneSubstitution
   = Variable := Term
@@ -37,23 +37,25 @@ data SearchTree
 initSearchTree :: Resolvent -> [SearchTree] -> SearchTree
 initSearchTree = Node Nothing []
 
-data Resolvent
-  = Resolvent (Maybe Term) [Term] Resolvent
-  | EmptyResolvent
+-- data Resolvent
+--   = Resolvent (Maybe Term) [Term] Resolvent
+--   | EmptyResolvent
 
-instance Show Resolvent where
-  show (Resolvent _ terms rest) = intercalate "\n" (map show full)
-    where
-      full = terms ++ getTerms rest
-      getTerms (Resolvent _ terms rest) = terms ++ getTerms rest
-      getTerms EmptyResolvent = []
-  show EmptyResolvent = ""
+-- instance Show Resolvent where
+--   show (Resolvent _ terms rest) = intercalate "\n" (map show full)
+--     where
+--       full = terms ++ getTerms rest
+--       getTerms (Resolvent _ terms rest) = terms ++ getTerms rest
+--       getTerms EmptyResolvent = []
+--   show EmptyResolvent = ""
 
-initResolvent :: [Term] -> Resolvent
-initResolvent question = Resolvent Nothing question EmptyResolvent
+type Resolvent = [Term]
+
+initResolvent :: [Term] -> [Term]
+initResolvent question = question
 
 data Cutted = Cutted deriving Eq
-type Cutting = [(Term, Int)]
+type Cutting = [Int]
 
 type PrologM a = State VarID a
 
@@ -102,7 +104,6 @@ search (Syntax.Program clauses question) = runPrologM
         resolvent = initResolvent resolvent'
         vars = M.foldlWithKey (\acc vn vid -> Variable vid vn : acc) [] vars'
     setNextId next
-
     (_, branches) <- search' clauses resolvent []
     let final  = getAnswers $ initSearchTree resolvent branches
         result = map (filter (\(var := _) -> elem var vars)) final
@@ -115,22 +116,13 @@ search'
   -> Resolvent
   -> Substitution
   -> PrologM (Cutting, [SearchTree])
-search' _ EmptyResolvent substitution =
+search' _ [] substitution =
   return ([], [Ok Nothing substitution])
-search' sclauses (Resolvent func [] resolvent) substitution = do
-  (x,y) <- search' sclauses ( resolvent) substitution
-  return (x, y)
-search' sclauses (Resolvent func (Cut x : rest) resolvent) substitution = do
-  let nr  = (Resolvent func rest resolvent)
-  (cs, branches) <- search' sclauses nr substitution
-  cs' <- return $ case func of
-    Just c -> (c, x):cs
-    Nothing -> cs
-
-  return ( cs', branches)
-search' sclauses (Resolvent func (term : rest) resolvent) substitution = do
-  let resolvent' = succCut (Resolvent func rest resolvent)
-
+search' sclauses (Cut x : resolvent) substitution = do
+  (cs, branches) <- search' sclauses resolvent substitution
+  return ( x:cs, branches)
+search' sclauses (term : resolvent) substitution = do
+  let resolvent' = succCut resolvent
   (x, y) <- case term of
     CompoundTerm "is" [_, _] -> isHandler term sclauses resolvent' substitution
     CompoundTerm "<" [_, _] ->
@@ -173,7 +165,7 @@ explicitUnification (CompoundTerm "=" [x, y]) sclauses resolvent substitution =
     case t of
       Nothing      -> return ([], [Fail (Just $ x :? y)])
       Just result' -> do
-        let resolvent' = updateResolvent (resolvent) result'
+        let resolvent' = updateResolvent resolvent result'
         (cutted, trees) <- search' sclauses resolvent' result'
         return (cutted, [Node (Just $ x :? y) result' resolvent' trees])
 
@@ -190,7 +182,7 @@ isHandler (CompoundTerm "is" [var, formula]) sclauses resolvent substitution =
     case t of
       Nothing      -> return ([], [Fail (Just $ var :? formula)])
       Just result' -> do
-        let resolvent' = updateResolvent (resolvent) result'
+        let resolvent' = updateResolvent resolvent result'
         (cutted, trees) <- search' sclauses resolvent' result'
         return (cutted, [Node Nothing result' resolvent' trees])
 
@@ -219,7 +211,7 @@ defaultHandler term sclauses resolvent substitution = do
     f (Nothing, Rule p _) = return ([], Fail (Just $ p :? term))
     f (Nothing, Fact p) = return ([], Fail (Just $ p :? term))
     f (Just (func', terms', substitution'), _) = do
-      let resolvent'  = Resolvent (Just func') terms' resolvent
+      let resolvent'  = terms' ++ resolvent
           resolvent'' = updateResolvent resolvent' substitution'
       (cutted, branches) <- search' sclauses resolvent'' substitution'
       return
@@ -232,33 +224,24 @@ defaultHandler term sclauses resolvent substitution = do
     cutters   = let x = cutters''
       in if length x == 0
         then []
-        else if (snd.head $ x) == 0 then tail x else x
+        else if (head $ x) == 0 then tail x else x
   return (cutters, map snd branches')
 
-predCut :: [(Term, Int)] -> [(Term, Int)]
-predCut = map (\(x, y) -> (x, y - 1))
-
-predCut' :: Resolvent -> Resolvent
-predCut' = updateCut pred
+predCut :: [Int] -> [Int]
+predCut = map pred
 
 succCut :: Resolvent -> Resolvent
 succCut = updateCut succ
 
 updateCut :: (Int -> Int) -> Resolvent -> Resolvent
-updateCut _ EmptyResolvent = EmptyResolvent
-updateCut u (Resolvent f xs rest) = (Resolvent f xs' rest')
+updateCut f = map change
   where
-    rest' = updateCut u rest
-    xs' = map change xs
-    change (Cut x) = Cut (u x)
-    change x = x
+    change (Cut x) = Cut (f x)
+    change x       = x
 
 updateResolvent :: Resolvent -> Substitution -> Resolvent
-updateResolvent EmptyResolvent                   result = EmptyResolvent
-updateResolvent (Resolvent func terms resolvent) result = Resolvent
-  func
-  (map (updateTarget result) terms)
-  (updateResolvent resolvent result)
+updateResolvent []    result = []
+updateResolvent terms result = map (updateTarget result) terms
 
 updateTarget :: Substitution -> Term -> Term
 updateTarget result term = term'
@@ -291,7 +274,6 @@ unification (t :? p : targets) substitution = do
       unification updatedTargets (t := p : updatedSubstitution)
     Nothing -> unification (newTargets ++ targets) substitution
 
-
 updateEquals :: Variable -> Term -> Target -> Maybe Target
 updateEquals t p equals = Just $ map f equals
   where f (t' :? p') = replaceOccurrence t p t' :? replaceOccurrence t p p'
@@ -309,7 +291,6 @@ replaceOccurrence t q (CompoundTerm f args) = CompoundTerm f (map update args)
 replaceOccurrence t q p@(VariableTerm p') = if t == p' then q else p
 replaceOccurrence _ _ p                   = p
 
-
 unificateTerms :: Term -> Term -> Maybe (Target, Maybe OneSubstitution)
 unificateTerms t p = case (t, p) of
   (VariableTerm Anonymous, _                  ) -> Just ([], Nothing)
@@ -323,6 +304,4 @@ unificateTerms t p = case (t, p) of
     if f1 == f2 && length args1 == length args2
       then Just (zipWith (:?) args1 args2, Nothing)
       else Nothing
-  (Cut _, _  ) -> error "cut unification"
-  (_  , Cut _) -> error "cut unification"
   (t  , p  ) -> if t == p then Just ([], Nothing) else Nothing

@@ -22,4 +22,4 @@ clauses
 
 goal
 
-  qsort([3,4,2,1], X).
+  qsort([9,8,7,6,5,4,3,2,1], X).
